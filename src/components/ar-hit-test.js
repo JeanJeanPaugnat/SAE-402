@@ -36,10 +36,11 @@ AFRAME.registerComponent('ar-hit-test', {
     if (!this.data.enabled) return;
 
     const frame = this.el.sceneEl.frame;
+    const xrSession = this.el.sceneEl.renderer.xr.getSession();
     const xrViewerBase = this.el.sceneEl.renderer.xr.getReferenceSpace();
 
-    // Vérification de sécurité : sommes-nous bien en mode AR/XR ?
-    if (!this.el.sceneEl.is('ar-mode') || !frame || !xrViewerBase) return;
+    // Vérification de sécurité : sommes-nous bien en mode XR ?
+    if (!xrSession || !frame || !xrViewerBase) return;
 
     // 1. Initialisation de la source de Hit Test (une seule fois)
     if (!this.xrHitTestSource && !this.requestingHitTest) {
@@ -56,12 +57,14 @@ AFRAME.registerComponent('ar-hit-test', {
         const hit = hitTestResults[0];
         const pose = hit.getPose(xrViewerBase);
 
-        // On rend le curseur visible
-        this.el.setAttribute('visible', true);
+        if (pose) {
+          // On rend le curseur visible
+          this.el.setAttribute('visible', true);
 
-        // On déplace le curseur à la position détectée
-        this.el.object3D.position.copy(pose.transform.position);
-        this.el.object3D.quaternion.copy(pose.transform.orientation);
+          // On déplace le curseur à la position détectée
+          this.el.object3D.position.copy(pose.transform.position);
+          this.el.object3D.quaternion.copy(pose.transform.orientation);
+        }
         
       } else {
         // Pas de surface détectée (on regarde le plafond ou le vide)
@@ -74,6 +77,8 @@ AFRAME.registerComponent('ar-hit-test', {
     this.requestingHitTest = true;
     const session = this.el.sceneEl.renderer.xr.getSession();
 
+    console.log("🎯 Demande de Hit Test Source...");
+
     // Demander au WebXR de créer un rayon de détection
     session.requestReferenceSpace('viewer').then((refSpace) => {
       this.viewerSpace = refSpace;
@@ -81,7 +86,15 @@ AFRAME.registerComponent('ar-hit-test', {
         .then((source) => {
           this.xrHitTestSource = source;
           this.requestingHitTest = false;
+          console.log("✅ Hit Test Source créé avec succès !");
+        })
+        .catch((err) => {
+          console.error("❌ Erreur Hit Test:", err);
+          this.requestingHitTest = false;
         });
+    }).catch((err) => {
+      console.error("❌ Erreur Reference Space:", err);
+      this.requestingHitTest = false;
     });
   },
 

@@ -1,13 +1,78 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>sae-402</title>
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="./src/components/ar-hit-test.js"></script>
+    <script src="./src/components/ar-spawner.js"></script>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <a-scene 
+      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor; overlayElement: #overlay; referenceSpaceType: local-floor;"
+      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
+      background="color: transparent"
+      vr-mode-ui="enterARButton: #ar-button; enterVRButton: false"
+      cursor="rayOrigin: mouse">
+      
+      <a-light type="directional" position="-1 2 1" intensity="1"></a-light>
+      <a-light type="ambient" intensity="0.5"></a-light>
+
+      <!-- Cube de debug (toujours visible, à 1m devant toi) -->
+      <a-box id="debug-cube" position="0 0 -1" scale="0.1 0.1 0.1" 
+             material="color: lime; shader: flat"
+             animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+      </a-box>
+
+      <!-- Réticule de placement (suit les surfaces détectées) -->
+      <a-entity id="reticle" ar-hit-test="target: #coffee-machine" visible="false">
+        <a-ring radius-inner="0.04" radius-outer="0.06" 
+                rotation="-90 0 0"
+                material="color: white; opacity: 0.8; transparent: true; shader: flat">
+        </a-ring>
+        <a-ring radius-inner="0.01" radius-outer="0.015" 
+                rotation="-90 0 0"
+                material="color: white; shader: flat">
+        </a-ring>
+      </a-entity>
+
+      <!-- Machine à café (cachée au départ, apparaît au clic) -->
+      <a-entity id="coffee-machine" visible="false">
+        <a-box position="0 0.15 0" scale="0.3 0.3 0.2" material="color: #8B4513"></a-box>
+        <a-cylinder position="0.08 0.25 0.05" radius="0.03" height="0.1" material="color: silver"></a-cylinder>
+        <a-box position="0 0.05 0.15" scale="0.15 0.1 0.05" material="color: #333"></a-box>
+      </a-entity>
+
+      <a-entity ar-spawner></a-entity>
+
+    </a-scene>
+
+    <!-- Overlay HTML pour l'interface 2D (optionnel) -->
+    <div id="overlay" style="display: none;"></div>
+
+    <!-- Bouton AR personnalisé pour Quest 3 -->
+    <button id="ar-button" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; font-size: 18px; background: #4CC3D9; border: none; border-radius: 10px; cursor: pointer; z-index: 9999;">
+      🥽 Entrer en Réalité Mixte
+    </button>
+
+    <script>
+      // Script pour forcer le mode AR (passthrough) sur Quest 3
+      document.getElementById('ar-button').addEventListener('click', async () => {
+        const sceneEl = document.querySelector('a-scene');
+        
+        if (navigator.xr) {
+          try {
+            const session = await navigator.xr.requestSession('immersive-ar', {
+              requiredFeatures: ['local-floor', 'hit-test'],
+              optionalFeatures: ['dom-overlay', 'bounded-floor'],
+              domOverlay: { root: document.getElementById('overlay') }
+            });
+            sceneEl.renderer.xr.setSession(session);
+            document.getElementById('ar-button').style.display = 'none';
+          } catch (err) {
+            console.error('Erreur AR:', err);
+            alert('Mode AR non supporté : ' + err.message);
+          }
+        }
+      });
+    </script>
   </body>
 </html>
