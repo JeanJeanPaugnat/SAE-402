@@ -4,10 +4,11 @@
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="./src/components/ar-hit-test.js"></script>
     <script src="./src/components/ar-spawner.js"></script>
+    <script src="./src/components/hand-grab.js"></script>
   </head>
   <body>
     <a-scene 
-      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor; overlayElement: #overlay; referenceSpaceType: local-floor;"
+      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor, hand-tracking; overlayElement: #overlay; referenceSpaceType: local-floor;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
       background="color: transparent"
       vr-mode-ui="enterARButton: #ar-button; enterVRButton: false"
@@ -16,10 +17,28 @@
       <a-light type="directional" position="-1 2 1" intensity="1"></a-light>
       <a-light type="ambient" intensity="0.5"></a-light>
 
-      <!-- Cube de debug (toujours visible, à 1m devant toi) -->
-      <a-box id="debug-cube" position="0 0 -1" scale="0.1 0.1 0.1" 
+      <!-- Manettes Quest (grip/trigger pour attraper) -->
+      <a-entity id="left-controller" 
+                oculus-touch-controls="hand: left" 
+                controller-grab="hand: left">
+      </a-entity>
+      <a-entity id="right-controller" 
+                oculus-touch-controls="hand: right" 
+                controller-grab="hand: right">
+      </a-entity>
+
+      <!-- Mains du joueur (Quest 3 hand-tracking) -->
+      <a-entity id="left-hand" hand-tracking-controls="hand: left" hand-grab="hand: left">
+        <a-sphere radius="0.02" material="color: cyan; opacity: 0.6; transparent: true"></a-sphere>
+      </a-entity>
+      <a-entity id="right-hand" hand-tracking-controls="hand: right" hand-grab="hand: right">
+        <a-sphere radius="0.02" material="color: magenta; opacity: 0.6; transparent: true"></a-sphere>
+      </a-entity>
+
+      <!-- Cube attrapable (à 1m devant toi, hauteur de table) -->
+      <a-box id="debug-cube" position="0 0.8 -0.5" scale="0.1 0.1 0.1" 
              material="color: lime; shader: flat"
-             animation="property: rotation; to: 0 360 0; loop: true; dur: 3000">
+             grabbable>
       </a-box>
 
       <!-- Réticule de placement (suit les surfaces détectées) -->
@@ -54,23 +73,29 @@
     </button>
 
     <script>
+      // Attendre que la scène soit prête
+      document.querySelector('a-scene').addEventListener('loaded', () => {
+        console.log('✅ Scène A-Frame chargée');
+      });
+
       // Script pour forcer le mode AR (passthrough) sur Quest 3
       document.getElementById('ar-button').addEventListener('click', async () => {
         const sceneEl = document.querySelector('a-scene');
         
         if (navigator.xr) {
-          try {
-            const session = await navigator.xr.requestSession('immersive-ar', {
-              requiredFeatures: ['local-floor', 'hit-test'],
-              optionalFeatures: ['dom-overlay', 'bounded-floor'],
-              domOverlay: { root: document.getElementById('overlay') }
-            });
-            sceneEl.renderer.xr.setSession(session);
+          // Vérifier si immersive-ar est supporté
+          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+          console.log('AR supporté:', arSupported);
+          
+          if (arSupported) {
+            // Utiliser la méthode native d'A-Frame pour entrer en AR
+            sceneEl.enterAR();
             document.getElementById('ar-button').style.display = 'none';
-          } catch (err) {
-            console.error('Erreur AR:', err);
-            alert('Mode AR non supporté : ' + err.message);
+          } else {
+            alert('Le mode AR n\'est pas supporté sur cet appareil');
           }
+        } else {
+          alert('WebXR non disponible');
         }
       });
     </script>
