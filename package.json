@@ -1,5 +1,5 @@
 {
-  "name": "coffee-quest-ar",
+  "name": "sae-402",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,8 +10,5 @@
   },
   "devDependencies": {
     "vite": "^7.2.4"
-  },
-  "dependencies": {
-    "aframe": "^1.7.1"
   }
 }
