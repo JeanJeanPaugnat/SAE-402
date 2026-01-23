@@ -2,20 +2,33 @@
 <html>
   <head>
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     <script src="./src/components/ar-hit-test.js"></script>
     <script src="./src/components/ar-spawner.js"></script>
     <script src="./src/components/hand-grab.js"></script>
+    <script src="./src/components/real-world-physics.js"></script>
   </head>
   <body>
     <a-scene 
-      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor, hand-tracking; overlayElement: #overlay; referenceSpaceType: local-floor;"
+      physics="driver: local; gravity: -9.8; restitution: 0.6; friction: 0.3"
+      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor, hand-tracking, plane-detection, mesh-detection; overlayElement: #overlay; referenceSpaceType: local-floor;"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
       background="color: transparent"
       vr-mode-ui="enterARButton: #ar-button; enterVRButton: false"
       cursor="rayOrigin: mouse">
       
+      <!-- Lumières -->
       <a-light type="directional" position="-1 2 1" intensity="1"></a-light>
       <a-light type="ambient" intensity="0.5"></a-light>
+
+      <!-- Sol invisible avec physique (pour que les objets ne tombent pas indéfiniment) -->
+      <a-plane static-body 
+               position="0 0 0" 
+               rotation="-90 0 0" 
+               width="20" 
+               height="20" 
+               visible="false">
+      </a-plane>
 
       <!-- Manettes Quest (grip/trigger pour attraper) -->
       <a-entity id="left-controller" 
@@ -27,22 +40,102 @@
                 controller-grab="hand: right">
       </a-entity>
 
-      <!-- Mains du joueur (Quest 3 hand-tracking) -->
-      <a-entity id="left-hand" hand-tracking-controls="hand: left" hand-grab="hand: left">
-        <a-sphere radius="0.02" material="color: cyan; opacity: 0.6; transparent: true"></a-sphere>
-      </a-entity>
-      <a-entity id="right-hand" hand-tracking-controls="hand: right" hand-grab="hand: right">
-        <a-sphere radius="0.02" material="color: magenta; opacity: 0.6; transparent: true"></a-sphere>
-      </a-entity>
 
       <!-- Cube attrapable (à 1m devant toi, hauteur de table) -->
-      <a-box id="debug-cube" position="0 0.8 -0.5" scale="0.1 0.1 0.1" 
+      <a-box dynamic-body="mass: 1; linearDamping: 0.1; angularDamping: 0.1" 
+             id="debug-cube" 
+             position="0 0.8 -0.5" 
+             scale="0.1 0.1 0.1" 
              material="color: lime; shader: flat"
              grabbable>
       </a-box>
 
+      <!-- Sphère rebondissante -->
+      <a-sphere dynamic-body="mass: 0.5; linearDamping: 0.05" 
+                id="bouncy-ball" 
+                position="0.3 1.2 -0.7" 
+                radius="0.05" 
+                material="color: #FF6B6B; metalness: 0.3; roughness: 0.4"
+                grabbable>
+      </a-sphere>
+
+      <!-- Petit cube rouge -->
+      <a-box dynamic-body="mass: 0.8" 
+             id="red-cube" 
+             position="-0.2 1.0 -0.6" 
+             scale="0.08 0.08 0.08" 
+             material="color: #E74C3C; shader: flat"
+             grabbable>
+      </a-box>
+
+      <!-- ============ OBSTACLES / MURS (MODE DEBUG - désactivé en AR) ============ -->
+      <!-- 
+        En réalité mixte sur Quest 3, ces murs virtuels sont remplacés par 
+        le Scene Mesh (les vraies surfaces de ta pièce).
+        Garde-les pour tester sur desktop, commente-les pour le Quest.
+      -->
+      
+      <!-- DEBUG: Mur arrière (décommenter pour tester sur desktop) -->
+      <!--
+      <a-box static-body 
+             class="debug-wall"
+             position="0 1 -2" 
+             scale="4 3 0.1" 
+             material="color: #3498DB; opacity: 0.3; transparent: true">
+      </a-box>
+      -->
+
+      <!-- DEBUG: Mur gauche -->
+      <!--
+      <a-box static-body 
+             class="debug-wall"
+             position="-1.5 1 -1" 
+             scale="0.1 3 2" 
+             material="color: #9B59B6; opacity: 0.3; transparent: true">
+      </a-box>
+      -->
+
+      <!-- DEBUG: Mur droit -->
+      <!--
+      <a-box static-body 
+             class="debug-wall"
+             position="1.5 1 -1" 
+             scale="0.1 3 2" 
+             material="color: #1ABC9C; opacity: 0.3; transparent: true">
+      </a-box>
+      -->
+
+      <!-- Gestionnaire de physique monde réel -->
+      <a-entity ar-plane-collider="showDebugPlanes: true"></a-entity>
+
+      <!-- 
+        DEBUG: Table virtuelle (désactiver pour utiliser une vraie table)
+        En AR, les objets reposeront sur les vraies surfaces détectées.
+      -->
+      <!--
+      <a-box static-body 
+             id="table" 
+             position="0 0.4 -1" 
+             scale="0.8 0.05 0.5" 
+             material="color: #8B4513">
+      </a-box>
+      <a-box position="-0.35 0.2 -0.75" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
+      <a-box position="0.35 0.2 -0.75" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
+      <a-box position="-0.35 0.2 -1.25" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
+      <a-box position="0.35 0.2 -1.25" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
+      -->
+
+      <!-- Cylindre obstacle virtuel (optionnel - garde si tu veux un obstacle virtuel) -->
+      <a-cylinder static-body 
+                  id="virtual-obstacle"
+                  position="0.5 0.6 -0.8" 
+                  radius="0.08" 
+                  height="0.3" 
+                  material="color: #F39C12">
+      </a-cylinder>
+
       <!-- Réticule de placement (suit les surfaces détectées) -->
-      <a-entity id="reticle" ar-hit-test="target: #coffee-machine" visible="false">
+      <!-- <a-entity id="reticle" ar-hit-test="target: #coffee-machine" visible="false">
         <a-ring radius-inner="0.04" radius-outer="0.06" 
                 rotation="-90 0 0"
                 material="color: white; opacity: 0.8; transparent: true; shader: flat">
@@ -51,16 +144,9 @@
                 rotation="-90 0 0"
                 material="color: white; shader: flat">
         </a-ring>
-      </a-entity>
+      </a-entity> -->
 
-      <!-- Machine à café (cachée au départ, apparaît au clic) -->
-      <a-entity id="coffee-machine" visible="false">
-        <a-box position="0 0.15 0" scale="0.3 0.3 0.2" material="color: #8B4513"></a-box>
-        <a-cylinder position="0.08 0.25 0.05" radius="0.03" height="0.1" material="color: silver"></a-cylinder>
-        <a-box position="0 0.05 0.15" scale="0.15 0.1 0.05" material="color: #333"></a-box>
-      </a-entity>
 
-      <a-entity ar-spawner></a-entity>
 
     </a-scene>
 
@@ -69,7 +155,7 @@
 
     <!-- Bouton AR personnalisé pour Quest 3 -->
     <button id="ar-button" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; font-size: 18px; background: #4CC3D9; border: none; border-radius: 10px; cursor: pointer; z-index: 9999;">
-      🥽 Entrer en Réalité Mixte
+      Entrer en Réalité Mixte
     </button>
 
     <script>
