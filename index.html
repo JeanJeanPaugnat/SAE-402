@@ -9,6 +9,8 @@
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <!-- Physics system avec CANNON.js -->
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+    <!-- Composants hand-grab pour saisir les objets -->
+    <script src="./src/components/hand-grab.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
       
@@ -103,6 +105,35 @@
                 material="shader: flat">
         </a-text>
       </a-camera>
+
+      <!-- ============ MAINS POUR HAND TRACKING ============ -->
+      <!-- Main gauche -->
+      <a-entity id="left-hand"
+                hand-tracking-controls="hand: left; modelStyle: mesh; modelColor: #4CC3D9"
+                hand-grab="hand: left">
+        <!-- Sphère de visualisation de la zone de grab -->
+        <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
+      </a-entity>
+      
+      <!-- Main droite -->
+      <a-entity id="right-hand"
+                hand-tracking-controls="hand: right; modelStyle: mesh; modelColor: #4CC3D9"
+                hand-grab="hand: right">
+        <!-- Sphère de visualisation de la zone de grab -->
+        <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
+      </a-entity>
+
+      <!-- ============ MANETTES (fallback) ============ -->
+      <a-entity id="left-controller"
+                oculus-touch-controls="hand: left"
+                controller-grab="hand: left">
+      </a-entity>
+      
+      <a-entity id="right-controller"
+                oculus-touch-controls="hand: right"
+                controller-grab="hand: right"
+                cup-spawner>
+      </a-entity>
       
       <!-- ============ CURSEUR DE PLACEMENT ============ -->
       <a-entity id="placement-cursor" visible="false">
@@ -151,6 +182,179 @@
       </a-entity>
 
     </a-scene>
+
+    <!-- ============ COMPOSANT CUP SPAWNER ============ -->
+    <script>
+      /**
+       * Composant : cup-spawner
+       * Description : Permet de spawner une tasse dans la main avec le bouton A
+       *               et de la poser avec le trigger
+       * 
+       * Workflow:
+       * 1. Bouton A → spawn une tasse attachée à la manette
+       * 2. Trigger → détache la tasse et la pose au sol (hit-test)
+       * 3. Grip → grab une tasse déjà posée
+       */
+      AFRAME.registerComponent('cup-spawner', {
+        schema: {
+          cupScale: { type: 'number', default: 0.1 },
+          cupYOffset: { type: 'number', default: 0.05 }
+        },
+
+        init: function () {
+          this.heldCup = null;  // La tasse actuellement en main
+          this.cupCount = 0;
+          
+          // Écouter le bouton A (abuttondown sur Oculus Touch)
+          this.el.addEventListener('abuttondown', this.onAButton.bind(this));
+          
+          // Écouter le trigger pour poser la tasse
+          this.el.addEventListener('triggerdown', this.onTrigger.bind(this));
+          
+          // Obtenir la référence au ar-coffee-placer pour utiliser son hit-test
+          this.coffePlacer = null;
+          this.el.sceneEl.addEventListener('loaded', () => {
+            this.coffeePlacer = document.querySelector('[ar-coffee-placer]');
+            if (this.coffeePlacer) {
+              this.coffeePlacer = this.coffeePlacer.components['ar-coffee-placer'];
+            }
+          });
+          
+          console.log('☕ Cup-spawner initialisé');
+        },
+
+        onAButton: function (evt) {
+          // Si on a déjà une tasse en main, ne rien faire
+          if (this.heldCup) {
+            console.log('☕ Déjà une tasse en main !');
+            return;
+          }
+          
+          // Créer une nouvelle tasse attachée à la manette
+          this.spawnCupInHand();
+        },
+
+        spawnCupInHand: function () {
+          const cupEntity = document.createElement('a-entity');
+          cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
+          cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+          cupEntity.setAttribute('id', `held-cup-${Date.now()}`);
+          
+          // Position relative à la manette (légèrement devant et en haut)
+          cupEntity.setAttribute('position', '0 0.05 -0.05');
+          
+          // Ajouter comme enfant de la manette (suit automatiquement)
+          this.el.appendChild(cupEntity);
+          
+          this.heldCup = cupEntity;
+          this.cupCount++;
+          
+          // Effet visuel (couleur légèrement différente pour montrer qu'on la tient)
+          cupEntity.addEventListener('model-loaded', () => {
+            cupEntity.setAttribute('animation', {
+              property: 'scale',
+              from: '0 0 0',
+              to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
+              dur: 300,
+              easing: 'easeOutBack'
+            });
+          });
+          
+          console.log(`☕ Tasse spawned en main ! (total: ${this.cupCount})`);
+          
+          // Mettre à jour le debug
+          if (this.coffeePlacer) {
+            this.coffeePlacer.log('Tasse en main - Trigger pour poser');
+          }
+        },
+
+        onTrigger: function (evt) {
+          // Si pas de tasse en main, ne rien faire (laisse le grab fonctionner)
+          if (!this.heldCup) {
+            return;
+          }
+          
+          // Détacher et poser la tasse
+          this.placeCupFromHand();
+        },
+
+        placeCupFromHand: function () {
+          if (!this.heldCup) return;
+          
+          // Obtenir la position mondiale actuelle de la tasse
+          const worldPos = new THREE.Vector3();
+          this.heldCup.object3D.getWorldPosition(worldPos);
+          
+          const worldQuat = new THREE.Quaternion();
+          this.heldCup.object3D.getWorldQuaternion(worldQuat);
+          
+          // Détacher de la manette
+          const cupEl = this.heldCup;
+          this.el.removeChild(cupEl);
+          
+          // Ajouter à la scène principale
+          this.el.sceneEl.appendChild(cupEl);
+          
+          // Positionner à la position mondiale
+          cupEl.object3D.position.copy(worldPos);
+          cupEl.object3D.quaternion.copy(worldQuat);
+          
+          // Ajouter grabbable et physique
+          cupEl.setAttribute('grabbable', '');
+          
+          // Ajouter la physique après le positionnement
+          setTimeout(() => {
+            cupEl.setAttribute('dynamic-body', {
+              mass: 0.3,
+              shape: 'box',
+              linearDamping: 0.3,
+              angularDamping: 0.3
+            });
+            
+            cupEl.setAttribute('physics-material', {
+              restitution: 0.4,
+              friction: 0.5
+            });
+            
+            // Figer temporairement pour pas qu'elle tombe immédiatement
+            setTimeout(() => {
+              if (cupEl.body) {
+                cupEl.body.velocity.set(0, 0, 0);
+                cupEl.body.angularVelocity.set(0, 0, 0);
+                
+                // Vérifier si on est au-dessus d'une surface (hit-test)
+                // Si oui, figer. Sinon, laisser tomber.
+                if (this.coffeePlacer && this.coffeePlacer.lastHitPose) {
+                  const hitY = this.coffeePlacer.lastHitPose.position.y;
+                  // Si la tasse est proche du sol détecté, la poser
+                  if (Math.abs(worldPos.y - hitY) < 0.3) {
+                    cupEl.body.sleep();
+                    console.log('☕ Tasse posée sur surface');
+                  } else {
+                    console.log('☕ Tasse lâchée en l\'air - elle tombe !');
+                  }
+                }
+              }
+            }, 100);
+          }, 50);
+          
+          this.heldCup = null;
+          
+          // Mettre à jour le compteur
+          if (this.coffeePlacer) {
+            this.coffeePlacer.placedCups.push(cupEl);
+            this.coffeePlacer.updateCount();
+            this.coffeePlacer.log('Tasse posée ! Bouton A = nouvelle');
+          }
+          
+          console.log('☕ Tasse posée depuis la main');
+        },
+
+        tick: function () {
+          // Rien à faire - la tasse suit automatiquement car enfant de la manette
+        }
+      });
+    </script>
 
     <!-- ============ COMPOSANT AR COFFEE PLACER ============ -->
     <script>
@@ -364,17 +568,19 @@
         },
 
         /**
-         * Vérifie si une surface est horizontale (sol/table) via sa normale
+         * Vérifie si une surface est un SOL ou TABLE (horizontale vers le haut)
          * @param {Object} normal - Le vecteur normal {x, y, z}
-         * @returns {boolean} true si la surface est horizontale (angle < 30° par rapport à Y)
+         * @returns {boolean} true si la surface est un sol (normale vers le haut)
          */
         isHorizontalSurface: function (normal) {
           if (!normal) return true; // Par défaut on considère horizontal
           
-          // La normale d'une surface horizontale pointe vers le haut : Y proche de 1
-          // Tolérance de 30° => cos(30°) ≈ 0.866
-          const threshold = 0.7; // Un peu plus permissif
-          return Math.abs(normal.y) > threshold;
+          // SOL/TABLE = normale qui pointe vers le HAUT : Y > 0.7
+          // PLAFOND = normale qui pointe vers le BAS : Y < -0.7 → tasse tombe !
+          // MUR = normale horizontale : |Y| < 0.7 → tasse tombe !
+          
+          // On ne retourne true QUE si c'est un vrai sol (normale vers le haut)
+          return normal.y > 0.7;
         },
 
         /**
@@ -405,6 +611,12 @@
           cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
           cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
           
+          // ID unique pour debug
+          cupEntity.setAttribute('id', `cup-${Date.now()}`);
+          
+          // ========== GRABBABLE - Permet de saisir avec les mains ==========
+          cupEntity.setAttribute('grabbable', '');
+          
           // IMPORTANT: Décaler le Y vers le haut pour que la base de la tasse
           // soit sur la surface (pas le centre du modèle)
           cupEntity.setAttribute('position', {
@@ -414,34 +626,40 @@
           });
           
           // ========== PHYSIQUE ==========
-          if (isHorizontal) {
-            // Surface horizontale = sol ou table
-            // La tasse reste en place (pas de physique active)
-            this.log('☕ Tasse posée (sol/table)');
+          // Toutes les tasses ont un dynamic-body pour pouvoir être saisies et lâchées
+          cupEntity.addEventListener('model-loaded', () => {
+            cupEntity.setAttribute('dynamic-body', {
+              mass: 0.3,           // 300g
+              shape: 'box',        // Forme de collision simplifiée
+              linearDamping: 0.3,  // Résistance de l'air
+              angularDamping: 0.3
+            });
             
+            // Configurer les rebonds via le matériau physique
+            cupEntity.setAttribute('physics-material', {
+              restitution: 0.4,    // Rebond modéré (0-1)
+              friction: 0.5        // Friction au sol
+            });
+            
+            // Si posée sur surface horizontale, figer temporairement
+            if (isHorizontal) {
+              // Attendre que le body soit créé
+              setTimeout(() => {
+                if (cupEntity.body) {
+                  cupEntity.body.velocity.set(0, 0, 0);
+                  cupEntity.body.angularVelocity.set(0, 0, 0);
+                  cupEntity.body.sleep(); // Mettre en veille (pas de simulation)
+                }
+              }, 100);
+            }
+          });
+          
+          if (isHorizontal) {
+            this.log('☕ Tasse posée (sol/table)');
             // Mettre à jour le sol invisible à cette hauteur
             this.updatePhysicsFloor(position.y);
-            
           } else {
-            // Surface verticale ou en pente (mur, plafond)
-            // La tasse tombe avec physique !
             this.log('☕ Tasse sur mur → TOMBE !');
-            
-            // Attendre que le modèle soit chargé avant d'ajouter le body
-            cupEntity.addEventListener('model-loaded', () => {
-              cupEntity.setAttribute('dynamic-body', {
-                mass: 0.3,           // 300g
-                shape: 'box',        // Forme de collision simplifiée
-                linearDamping: 0.3,  // Résistance de l'air
-                angularDamping: 0.3
-              });
-              
-              // Configurer les rebonds via le matériau physique
-              cupEntity.setAttribute('physics-material', {
-                restitution: 0.4,    // Rebond modéré (0-1)
-                friction: 0.5        // Friction au sol
-              });
-            });
           }
           
           // Animation d'apparition

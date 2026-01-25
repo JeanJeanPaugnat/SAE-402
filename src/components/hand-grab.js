@@ -1,6 +1,7 @@
 /* 
  * Composant : controller-grab
  * Description : Permet d'attraper des objets avec les manettes Quest (grip button)
+ * NOTE: N'utilise QUE le grip, le trigger est réservé pour placer les tasses
  */
 
 AFRAME.registerComponent('controller-grab', {
@@ -13,13 +14,10 @@ AFRAME.registerComponent('controller-grab', {
     this.grabOffset = new THREE.Vector3();
     this.grabDistance = 0.15; // Distance de grab en mètres
     
-    // Écouter le bouton grip de la manette
+    // Écouter UNIQUEMENT le bouton grip de la manette
+    // Le trigger est réservé pour cup-spawner (poser la tasse)
     this.el.addEventListener('gripdown', this.onGripDown.bind(this));
     this.el.addEventListener('gripup', this.onGripUp.bind(this));
-    
-    // Aussi écouter le trigger comme alternative
-    this.el.addEventListener('triggerdown', this.onGripDown.bind(this));
-    this.el.addEventListener('triggerup', this.onGripUp.bind(this));
     
     console.log(`🎮 Controller-grab initialisé pour la main ${this.data.hand}`);
   },
