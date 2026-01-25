@@ -17,6 +17,12 @@
       vr-mode-ui="enterARButton: #ar-button; enterVRButton: false"
       cursor="rayOrigin: mouse">
       
+      <!-- ============ ASSETS (préchargement) ============ -->
+      <a-assets>
+        <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
+        <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
+      </a-assets>
+
       <!-- Lumières -->
       <a-light type="directional" position="-1 2 1" intensity="1"></a-light>
       <a-light type="ambient" intensity="0.5"></a-light>
@@ -67,6 +73,26 @@
              material="color: #E74C3C; shader: flat"
              grabbable>
       </a-box>
+
+      <!-- ============ MODÈLES 3D ============ -->
+      
+      <!-- Machine à café (statique, posée) -->
+      <a-entity id="coffee-machine" 
+                gltf-model="#coffee-machine-model"
+                position="0 0.5 -1"
+                scale="0.3 0.3 0.3"
+                rotation="0 0 0">
+      </a-entity>
+
+      <!-- Tasse de café (attrapable avec physique) -->
+      <a-entity id="coffee-cup" 
+                gltf-model="#coffee-cup-model"
+                dynamic-body="shape: box; mass: 0.3"
+                position="0.25 0.65 -0.8"
+                scale="0.15 0.15 0.15"
+                rotation="0 0 0"
+                grabbable>
+      </a-entity>
 
       <!-- ============ OBSTACLES / MURS (MODE DEBUG - désactivé en AR) ============ -->
       <!-- 
