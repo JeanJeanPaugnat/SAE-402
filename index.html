@@ -1,213 +1,477 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
-    <script src="./src/components/ar-hit-test.js"></script>
-    <script src="./src/components/ar-spawner.js"></script>
-    <script src="./src/components/hand-grab.js"></script>
-    <script src="./src/components/real-world-physics.js"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>☕ Coffee Cup AR - SAE 402</title>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <style>
+      body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+      
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 15px;
+        border-radius: 10px;
+        z-index: 1000;
+        max-width: 320px;
+      }
+      #info h2 { margin: 0 0 10px 0; font-size: 18px; }
+      #info p { margin: 5px 0; font-size: 14px; }
+      #count { color: #4CC3D9; font-weight: bold; }
+      #debug { font-size: 12px; color: #FFD700; margin-top: 10px; font-family: monospace; }
+      
+      #start-ar-btn {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 18px 40px;
+        font-size: 20px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #4CC3D9, #3498db);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        z-index: 9999;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      #start-ar-btn:hover {
+        transform: translateX(-50%) scale(1.05);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      }
+    </style>
   </head>
   <body>
+    <!-- Interface HTML visible sur l'écran -->
+    <div id="info">
+      <h2>☕ Coffee Cup AR</h2>
+      <p>Placez des tasses de café dans votre espace !</p>
+      <p id="count">Tasses placées: 0</p>
+      <p id="debug">État: Prêt</p>
+    </div>
+
+    <button id="start-ar-btn">🥽 Démarrer en AR</button>
+
+    <!-- Scène A-Frame -->
     <a-scene 
-      physics="driver: local; gravity: -9.8; restitution: 0.6; friction: 0.3"
-      webxr="requiredFeatures: hit-test, local-floor; optionalFeatures: dom-overlay, bounded-floor, hand-tracking, plane-detection, mesh-detection; overlayElement: #overlay; referenceSpaceType: local-floor;"
-      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true"
+      webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking; referenceSpaceType: local-floor;"
+      vr-mode-ui="enabled: false"
+      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true"
       background="color: transparent"
-      vr-mode-ui="enterARButton: #ar-button; enterVRButton: false"
-      cursor="rayOrigin: mouse">
+      ar-coffee-placer>
       
-      <!-- ============ ASSETS (préchargement) ============ -->
+      <!-- ============ ASSETS ============ -->
       <a-assets>
-        <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
         <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
+        <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Lumières -->
-      <a-light type="directional" position="-1 2 1" intensity="1"></a-light>
-      <a-light type="ambient" intensity="0.5"></a-light>
+      <!-- ============ ÉCLAIRAGE ============ -->
+      <a-light type="ambient" intensity="0.7"></a-light>
+      <a-light type="directional" position="1 2 1" intensity="0.9" cast-shadow="true"></a-light>
 
-      <!-- Sol invisible avec physique (pour que les objets ne tombent pas indéfiniment) -->
-      <a-plane static-body 
-               position="0 0 0" 
-               rotation="-90 0 0" 
-               width="20" 
-               height="20" 
-               visible="false">
-      </a-plane>
-
-      <!-- Manettes Quest (grip/trigger pour attraper) -->
-      <a-entity id="left-controller" 
-                oculus-touch-controls="hand: left" 
-                controller-grab="hand: left">
-      </a-entity>
-      <a-entity id="right-controller" 
-                oculus-touch-controls="hand: right" 
-                controller-grab="hand: right">
-      </a-entity>
-
-
-      <!-- Cube attrapable (à 1m devant toi, hauteur de table) -->
-      <a-box dynamic-body="mass: 1; linearDamping: 0.1; angularDamping: 0.1" 
-             id="debug-cube" 
-             position="0 0.8 -0.5" 
-             scale="0.1 0.1 0.1" 
-             material="color: lime; shader: flat"
-             grabbable>
-      </a-box>
-
-      <!-- Sphère rebondissante -->
-      <a-sphere dynamic-body="mass: 0.5; linearDamping: 0.05" 
-                id="bouncy-ball" 
-                position="0.3 1.2 -0.7" 
-                radius="0.05" 
-                material="color: #FF6B6B; metalness: 0.3; roughness: 0.4"
-                grabbable>
-      </a-sphere>
-
-      <!-- Petit cube rouge -->
-      <a-box dynamic-body="mass: 0.8" 
-             id="red-cube" 
-             position="-0.2 1.0 -0.6" 
-             scale="0.08 0.08 0.08" 
-             material="color: #E74C3C; shader: flat"
-             grabbable>
-      </a-box>
-
-      <!-- ============ MODÈLES 3D ============ -->
-      
-      <!-- Machine à café (statique, posée) -->
-      <a-entity id="coffee-machine" 
-                gltf-model="#coffee-machine-model"
-                position="0 0.5 -1"
-                scale="0.3 0.3 0.3"
-                rotation="0 0 0">
-      </a-entity>
-
-      <!-- Tasse de café (attrapable avec physique) -->
-      <a-entity id="coffee-cup" 
-                gltf-model="#coffee-cup-model"
-                dynamic-body="shape: box; mass: 0.3"
-                position="0.25 0.65 -0.8"
-                scale="0.15 0.15 0.15"
-                rotation="0 0 0"
-                grabbable>
-      </a-entity>
-
-      <!-- ============ OBSTACLES / MURS (MODE DEBUG - désactivé en AR) ============ -->
-      <!-- 
-        En réalité mixte sur Quest 3, ces murs virtuels sont remplacés par 
-        le Scene Mesh (les vraies surfaces de ta pièce).
-        Garde-les pour tester sur desktop, commente-les pour le Quest.
-      -->
-      
-      <!-- DEBUG: Mur arrière (décommenter pour tester sur desktop) -->
-      <!--
-      <a-box static-body 
-             class="debug-wall"
-             position="0 1 -2" 
-             scale="4 3 0.1" 
-             material="color: #3498DB; opacity: 0.3; transparent: true">
-      </a-box>
-      -->
-
-      <!-- DEBUG: Mur gauche -->
-      <!--
-      <a-box static-body 
-             class="debug-wall"
-             position="-1.5 1 -1" 
-             scale="0.1 3 2" 
-             material="color: #9B59B6; opacity: 0.3; transparent: true">
-      </a-box>
-      -->
-
-      <!-- DEBUG: Mur droit -->
-      <!--
-      <a-box static-body 
-             class="debug-wall"
-             position="1.5 1 -1" 
-             scale="0.1 3 2" 
-             material="color: #1ABC9C; opacity: 0.3; transparent: true">
-      </a-box>
-      -->
-
-      <!-- Gestionnaire de physique monde réel -->
-      <a-entity ar-plane-collider="showDebugPlanes: true"></a-entity>
-
-      <!-- 
-        DEBUG: Table virtuelle (désactiver pour utiliser une vraie table)
-        En AR, les objets reposeront sur les vraies surfaces détectées.
-      -->
-      <!--
-      <a-box static-body 
-             id="table" 
-             position="0 0.4 -1" 
-             scale="0.8 0.05 0.5" 
-             material="color: #8B4513">
-      </a-box>
-      <a-box position="-0.35 0.2 -0.75" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
-      <a-box position="0.35 0.2 -0.75" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
-      <a-box position="-0.35 0.2 -1.25" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
-      <a-box position="0.35 0.2 -1.25" scale="0.05 0.4 0.05" material="color: #654321"></a-box>
-      -->
-
-      <!-- Cylindre obstacle virtuel (optionnel - garde si tu veux un obstacle virtuel) -->
-      <a-cylinder static-body 
-                  id="virtual-obstacle"
-                  position="0.5 0.6 -0.8" 
-                  radius="0.08" 
-                  height="0.3" 
-                  material="color: #F39C12">
-      </a-cylinder>
-
-      <!-- Réticule de placement (suit les surfaces détectées) -->
-      <!-- <a-entity id="reticle" ar-hit-test="target: #coffee-machine" visible="false">
-        <a-ring radius-inner="0.04" radius-outer="0.06" 
-                rotation="-90 0 0"
-                material="color: white; opacity: 0.8; transparent: true; shader: flat">
+      <!-- ============ CAMÉRA ============ -->
+      <a-camera position="0 1.6 0">
+        <!-- Réticule au centre de la vue (visible dans le casque) -->
+        <a-ring id="center-reticle" 
+                position="0 0 -1.5" 
+                radius-inner="0.015" 
+                radius-outer="0.025" 
+                color="#00FF00"
+                material="shader: flat; opacity: 0.8">
         </a-ring>
-        <a-ring radius-inner="0.01" radius-outer="0.015" 
+        
+        <!-- Texte de debug visible dans le casque -->
+        <a-text id="vr-debug-text" 
+                value="Prêt" 
+                position="0 0.35 -1" 
+                scale="0.4 0.4 0.4" 
+                color="#00FF00" 
+                align="center"
+                material="shader: flat">
+        </a-text>
+      </a-camera>
+      
+      <!-- ============ CURSEUR DE PLACEMENT ============ -->
+      <a-entity id="placement-cursor" visible="false">
+        <!-- Cercle externe -->
+        <a-ring color="#00FF00" 
+                radius-inner="0.08" 
+                radius-outer="0.12" 
                 rotation="-90 0 0"
-                material="color: white; shader: flat">
+                material="shader: flat; opacity: 0.9">
         </a-ring>
-      </a-entity> -->
+        <!-- Cercle interne -->
+        <a-ring color="#FFFF00" 
+                radius-inner="0.03" 
+                radius-outer="0.05" 
+                rotation="-90 0 0"
+                material="shader: flat">
+        </a-ring>
+        <!-- Flèche vers le haut -->
+        <a-cone color="#00FF00" 
+                height="0.12" 
+                radius-bottom="0.03" 
+                radius-top="0" 
+                position="0 0.06 0"
+                material="shader: flat">
+        </a-cone>
+      </a-entity>
 
-
+      <!-- ============ PRÉVISUALISATION DE LA TASSE ============ -->
+      <a-entity id="cup-preview" visible="false">
+        <a-entity gltf-model="#coffee-cup-model" 
+                  scale="0.1 0.1 0.1"
+                  material="opacity: 0.5; transparent: true">
+        </a-entity>
+      </a-entity>
 
     </a-scene>
 
-    <!-- Overlay HTML pour l'interface 2D (optionnel) -->
-    <div id="overlay" style="display: none;"></div>
-
-    <!-- Bouton AR personnalisé pour Quest 3 -->
-    <button id="ar-button" style="position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 15px 30px; font-size: 18px; background: #4CC3D9; border: none; border-radius: 10px; cursor: pointer; z-index: 9999;">
-      Entrer en Réalité Mixte
-    </button>
-
+    <!-- ============ COMPOSANT AR COFFEE PLACER ============ -->
     <script>
-      // Attendre que la scène soit prête
-      document.querySelector('a-scene').addEventListener('loaded', () => {
-        console.log('✅ Scène A-Frame chargée');
-      });
+      /**
+       * Composant : ar-coffee-placer
+       * Description : Permet de placer des tasses de café sur les surfaces réelles
+       * Utilise WebXR Hit-Test et Anchors API
+       */
+      AFRAME.registerComponent('ar-coffee-placer', {
+        schema: {
+          maxCups: { type: 'number', default: 20 },
+          cupScale: { type: 'number', default: 0.1 }
+        },
 
-      // Script pour forcer le mode AR (passthrough) sur Quest 3
-      document.getElementById('ar-button').addEventListener('click', async () => {
-        const sceneEl = document.querySelector('a-scene');
-        
-        if (navigator.xr) {
-          // Vérifier si immersive-ar est supporté
-          const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-          console.log('AR supporté:', arSupported);
+        init: function () {
+          // État du composant
+          this.placedCups = [];
+          this.xrSession = null;
+          this.xrRefSpace = null;
+          this.hitTestSource = null;
+          this.hitTestSourceRequested = false;
+          this.lastHitPose = null;
+          this.sessionInitialized = false;
           
-          if (arSupported) {
-            // Utiliser la méthode native d'A-Frame pour entrer en AR
-            sceneEl.enterAR();
-            document.getElementById('ar-button').style.display = 'none';
-          } else {
-            alert('Le mode AR n\'est pas supporté sur cet appareil');
+          // Éléments DOM
+          this.cursorEl = document.querySelector('#placement-cursor');
+          this.previewEl = document.querySelector('#cup-preview');
+          this.debugTextEl = document.querySelector('#vr-debug-text');
+          this.debugHtmlEl = document.querySelector('#debug');
+          this.countEl = document.querySelector('#count');
+          this.startBtn = document.querySelector('#start-ar-btn');
+          
+          // Configurer le bouton AR
+          this.setupARButton();
+          
+          // Écouter les événements de session
+          this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR.bind(this));
+          this.el.sceneEl.addEventListener('exit-vr', this.onExitVR.bind(this));
+          
+          this.log('☕ Coffee Placer initialisé');
+        },
+
+        log: function (message) {
+          console.log('[AR]', message);
+          
+          // Mettre à jour le debug HTML
+          if (this.debugHtmlEl) {
+            this.debugHtmlEl.textContent = 'État: ' + message;
           }
-        } else {
-          alert('WebXR non disponible');
+          
+          // Mettre à jour le debug VR
+          if (this.debugTextEl) {
+            this.debugTextEl.setAttribute('value', message);
+          }
+        },
+
+        setupARButton: function () {
+          const self = this;
+          
+          this.startBtn.addEventListener('click', async () => {
+            try {
+              // Vérifier si WebXR est supporté
+              if (!navigator.xr) {
+                throw new Error('WebXR non supporté');
+              }
+              
+              // Vérifier si le mode AR est supporté
+              const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+              if (!arSupported) {
+                throw new Error('Mode AR non supporté');
+              }
+              
+              self.log('Démarrage AR...');
+              
+              // Demander une session AR avec passthrough
+              const session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['local-floor', 'hit-test'],
+                optionalFeatures: ['anchors', 'hand-tracking', 'dom-overlay'],
+                domOverlay: { root: document.querySelector('#info') }
+              });
+              
+              // IMPORTANT: Configurer le renderer pour le passthrough
+              const renderer = self.el.sceneEl.renderer;
+              renderer.xr.setSession(session);
+              
+              // S'assurer que le background est transparent pour le passthrough
+              const scene = self.el.sceneEl.object3D;
+              if (scene && scene.background) {
+                scene.background = null;
+              }
+              
+              // Cacher le bouton
+              self.startBtn.style.display = 'none';
+              
+              self.log('Session AR OK !');
+              
+              // IMPORTANT: Initialiser directement (ne pas attendre enter-vr)
+              setTimeout(() => {
+                self.initializeSession();
+              }, 800);
+              
+            } catch (error) {
+              self.log('Erreur: ' + error.message);
+              console.error('AR Error:', error);
+              alert('Erreur AR: ' + error.message);
+            }
+          });
+        },
+
+        onEnterVR: async function () {
+          this.log('Entrée VR/AR');
+          
+          // Attendre que la session soit établie (augmenté pour plus de stabilité)
+          setTimeout(() => {
+            this.initializeSession();
+          }, 800);
+        },
+
+        onExitVR: function () {
+          this.log('Sortie VR/AR');
+          
+          // Nettoyer proprement
+          if (this.hitTestSource) {
+            try {
+              this.hitTestSource.cancel();
+            } catch (e) {
+              console.warn('Hit-test cancel error:', e);
+            }
+            this.hitTestSource = null;
+          }
+          this.hitTestSourceRequested = false;
+          this.sessionInitialized = false;
+          
+          // Réafficher le bouton
+          this.startBtn.style.display = 'block';
+        },
+
+        initializeSession: async function () {
+          this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+          this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+          
+          if (!this.xrSession) {
+            this.log('Pas de session XR');
+            return;
+          }
+          
+          this.sessionInitialized = true;
+          this.log('Session OK');
+          
+          // Vérifier les features disponibles
+          if (this.xrSession.enabledFeatures) {
+            console.log('Features activées:', this.xrSession.enabledFeatures);
+            this.log('Features: ' + this.xrSession.enabledFeatures.join(', '));
+          }
+          
+          // IMPORTANT: Créer un hit-test source "viewer" comme fallback
+          // Cela fonctionne avec le regard (pas besoin de manette)
+          try {
+            const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
+            this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
+            this.hitTestSourceRequested = true;
+            this.log('Hit-test (viewer) OK !');
+          } catch (error) {
+            this.log('Hit-test error: ' + error.message);
+          }
+          
+          // Écouter les événements "select" (trigger de la manette ou tap)
+          this.xrSession.addEventListener('select', this.onSelect.bind(this));
+          
+          // Log des input sources
+          const inputSources = this.xrSession.inputSources;
+          this.log(`Inputs: ${inputSources.length} détectés`);
+          
+          this.log('Prêt ! Visez et appuyez');
+        },
+
+        onSelect: function (event) {
+          this.log('>>> TRIGGER ! <<<');
+          
+          if (!this.lastHitPose) {
+            this.log('Aucune surface détectée');
+            return;
+          }
+          
+          // Placer une tasse à la position détectée
+          this.placeCup(this.lastHitPose);
+        },
+
+        placeCup: function (pose) {
+          const position = pose.position;
+          const orientation = pose.orientation;
+          
+          // Créer l'entité tasse
+          const cupEntity = document.createElement('a-entity');
+          cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
+          cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+          cupEntity.setAttribute('position', {
+            x: position.x,
+            y: position.y,
+            z: position.z
+          });
+          
+          // Animation d'apparition
+          cupEntity.setAttribute('animation', {
+            property: 'scale',
+            from: '0 0 0',
+            to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
+            dur: 400,
+            easing: 'easeOutBack'
+          });
+          
+          // Ajouter à la scène
+          this.el.sceneEl.appendChild(cupEntity);
+          this.placedCups.push(cupEntity);
+          
+          // Limiter le nombre de tasses
+          if (this.placedCups.length > this.data.maxCups) {
+            const oldCup = this.placedCups.shift();
+            if (oldCup.parentNode) {
+              oldCup.parentNode.removeChild(oldCup);
+            }
+          }
+          
+          // Mettre à jour le compteur
+          this.updateCount();
+          
+          this.log(`Tasse placée ! (${this.placedCups.length})`);
+        },
+
+        updateCount: function () {
+          if (this.countEl) {
+            this.countEl.textContent = `Tasses placées: ${this.placedCups.length}`;
+          }
+        },
+
+        tick: function (time, delta) {
+          if (!this.sessionInitialized || !this.xrSession || !this.xrRefSpace) {
+            return;
+          }
+          
+          const frame = this.el.sceneEl.frame;
+          if (!frame) return;
+          
+          // Effectuer le hit-test (utilise le viewer/regard)
+          if (this.hitTestSource) {
+            try {
+              const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+              
+              if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const hitPose = hit.getPose(this.xrRefSpace);
+                
+                if (hitPose) {
+                  // Surface détectée !
+                  this.lastHitPose = hitPose.transform;
+                  this.updateCursor(hitPose.transform, true);
+                  
+                  // Debug occasionnel (toutes les 60 frames)
+                  this.hitCount = (this.hitCount || 0) + 1;
+                  if (this.hitCount % 60 === 1) {
+                    const pos = hitPose.transform.position;
+                    this.log(`Surface: ${pos.y.toFixed(2)}m`);
+                  }
+                }
+              } else {
+                // Pas de surface détectée
+                this.updateCursor(null, false);
+                
+                // Debug occasionnel
+                this.noHitCount = (this.noHitCount || 0) + 1;
+                if (this.noHitCount % 120 === 1) {
+                  this.log('Cherche surface...');
+                }
+              }
+            } catch (error) {
+              // Erreur silencieuse
+              console.warn('Hit-test error:', error);
+            }
+          } else {
+            // Pas encore de hit-test source
+            this.waitCount = (this.waitCount || 0) + 1;
+            if (this.waitCount % 120 === 1) {
+              this.log('Attente hit-test...');
+            }
+          }
+        },
+
+        updateCursor: function (pose, detected) {
+          if (!this.cursorEl) return;
+          
+          if (detected && pose) {
+            // Afficher le curseur à la position détectée
+            this.cursorEl.object3D.visible = true;
+            this.cursorEl.object3D.position.set(
+              pose.position.x,
+              pose.position.y,
+              pose.position.z
+            );
+            this.cursorEl.object3D.quaternion.set(
+              pose.orientation.x,
+              pose.orientation.y,
+              pose.orientation.z,
+              pose.orientation.w
+            );
+            
+            // Couleur verte = surface détectée
+            this.cursorEl.querySelectorAll('a-ring').forEach(ring => {
+              ring.setAttribute('color', '#00FF00');
+            });
+            
+            // Afficher la prévisualisation de la tasse
+            if (this.previewEl) {
+              this.previewEl.object3D.visible = true;
+              this.previewEl.object3D.position.set(
+                pose.position.x,
+                pose.position.y,
+                pose.position.z
+              );
+            }
+          } else {
+            // Cacher le curseur
+            this.cursorEl.object3D.visible = false;
+            if (this.previewEl) {
+              this.previewEl.object3D.visible = false;
+            }
+            this.lastHitPose = null;
+          }
+        },
+
+        remove: function () {
+          // Nettoyer les tasses
+          this.placedCups.forEach(cup => {
+            if (cup.parentNode) {
+              cup.parentNode.removeChild(cup);
+            }
+          });
+          this.placedCups = [];
         }
       });
     </script>
