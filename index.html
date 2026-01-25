@@ -7,6 +7,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>☕ Coffee Cup AR - SAE 402</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <!-- Physics system avec CANNON.js -->
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
       
@@ -62,11 +64,13 @@
 
     <!-- Scène A-Frame -->
     <a-scene 
-      webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking; referenceSpaceType: local-floor;"
+      webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking, plane-detection, mesh-detection; referenceSpaceType: local-floor;"
       vr-mode-ui="enabled: false"
       renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true"
       background="color: transparent"
-      ar-coffee-placer>
+      physics="driver: local; gravity: -9.8; debug: false"
+      ar-coffee-placer
+      ar-plane-detector="showPlanes: true">
       
       <!-- ============ ASSETS ============ -->
       <a-assets>
@@ -126,6 +130,18 @@
         </a-cone>
       </a-entity>
 
+      <!-- ============ SOL INVISIBLE POUR PHYSIQUE ============ -->
+      <!-- Ce plan sera repositionné dynamiquement à la hauteur du sol détecté -->
+      <a-plane id="physics-floor"
+               position="0 0 0"
+               rotation="-90 0 0"
+               width="50"
+               height="50"
+               visible="false"
+               static-body>
+      </a-plane>
+      </a-entity>
+
       <!-- ============ PRÉVISUALISATION DE LA TASSE ============ -->
       <a-entity id="cup-preview" visible="false">
         <a-entity gltf-model="#coffee-cup-model" 
@@ -146,7 +162,11 @@
       AFRAME.registerComponent('ar-coffee-placer', {
         schema: {
           maxCups: { type: 'number', default: 20 },
-          cupScale: { type: 'number', default: 0.1 }
+          cupScale: { type: 'number', default: 0.1 },
+          // Décalage vertical pour placer la tasse sur sa base (pas son centre)
+          // Si le modèle a son origine au centre et fait ~10cm de haut avec scale 0.1
+          // alors on doit décaler de la moitié de sa hauteur réelle
+          cupYOffset: { type: 'number', default: 0.05 }  // 5cm de décalage par défaut
         },
 
         init: function () {
@@ -209,10 +229,10 @@
               
               self.log('Démarrage AR...');
               
-              // Demander une session AR avec passthrough
+              // Demander une session AR avec passthrough et plane-detection
               const session = await navigator.xr.requestSession('immersive-ar', {
                 requiredFeatures: ['local-floor', 'hit-test'],
-                optionalFeatures: ['anchors', 'hand-tracking', 'dom-overlay'],
+                optionalFeatures: ['anchors', 'hand-tracking', 'plane-detection', 'mesh-detection', 'dom-overlay'],
                 domOverlay: { root: document.querySelector('#info') }
               });
               
@@ -311,6 +331,25 @@
           this.log('Prêt ! Visez et appuyez');
         },
 
+        /**
+         * Calcule le vecteur normal d'une surface à partir de son quaternion
+         * La normale est le vecteur Y (0,1,0) transformé par le quaternion
+         * @param {DOMPointReadOnly} q - Quaternion {x, y, z, w}
+         * @returns {Object} Normal {x, y, z}
+         */
+        quaternionToNormal: function (q) {
+          // Rotation du vecteur (0, 1, 0) par le quaternion
+          // Formule: v' = q * v * q^-1 (optimisée pour vecteur unitaire Y)
+          const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+          
+          // Composantes de la normale après rotation
+          const nx = 2 * (qx * qy - qz * qw);
+          const ny = 1 - 2 * (qx * qx + qz * qz);
+          const nz = 2 * (qy * qz + qx * qw);
+          
+          return { x: nx, y: ny, z: nz };
+        },
+
         onSelect: function (event) {
           this.log('>>> TRIGGER ! <<<');
           
@@ -320,22 +359,90 @@
           }
           
           // Placer une tasse à la position détectée
-          this.placeCup(this.lastHitPose);
+          // On passe aussi la normale stockée
+          this.placeCup(this.lastHitPose, this.lastHitNormal);
         },
 
-        placeCup: function (pose) {
+        /**
+         * Vérifie si une surface est horizontale (sol/table) via sa normale
+         * @param {Object} normal - Le vecteur normal {x, y, z}
+         * @returns {boolean} true si la surface est horizontale (angle < 30° par rapport à Y)
+         */
+        isHorizontalSurface: function (normal) {
+          if (!normal) return true; // Par défaut on considère horizontal
+          
+          // La normale d'une surface horizontale pointe vers le haut : Y proche de 1
+          // Tolérance de 30° => cos(30°) ≈ 0.866
+          const threshold = 0.7; // Un peu plus permissif
+          return Math.abs(normal.y) > threshold;
+        },
+
+        /**
+         * Met à jour la position du sol invisible pour la physique
+         * @param {number} floorY - La hauteur Y du sol détecté
+         */
+        updatePhysicsFloor: function (floorY) {
+          const floorEl = document.querySelector('#physics-floor');
+          if (floorEl && floorY !== undefined) {
+            // Ne mettre à jour que si on a trouvé un sol plus bas
+            if (this.lowestFloorY === undefined || floorY < this.lowestFloorY) {
+              this.lowestFloorY = floorY;
+              floorEl.setAttribute('position', { x: 0, y: floorY, z: 0 });
+              console.log('[AR] Sol physique mis à jour:', floorY.toFixed(2));
+            }
+          }
+        },
+
+        placeCup: function (pose, normal) {
           const position = pose.position;
           const orientation = pose.orientation;
+          
+          // Vérifier si la surface est horizontale
+          const isHorizontal = this.isHorizontalSurface(normal);
           
           // Créer l'entité tasse
           const cupEntity = document.createElement('a-entity');
           cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
           cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+          
+          // IMPORTANT: Décaler le Y vers le haut pour que la base de la tasse
+          // soit sur la surface (pas le centre du modèle)
           cupEntity.setAttribute('position', {
             x: position.x,
-            y: position.y,
+            y: position.y + this.data.cupYOffset,  // ← Décalage vers le haut
             z: position.z
           });
+          
+          // ========== PHYSIQUE ==========
+          if (isHorizontal) {
+            // Surface horizontale = sol ou table
+            // La tasse reste en place (pas de physique active)
+            this.log('☕ Tasse posée (sol/table)');
+            
+            // Mettre à jour le sol invisible à cette hauteur
+            this.updatePhysicsFloor(position.y);
+            
+          } else {
+            // Surface verticale ou en pente (mur, plafond)
+            // La tasse tombe avec physique !
+            this.log('☕ Tasse sur mur → TOMBE !');
+            
+            // Attendre que le modèle soit chargé avant d'ajouter le body
+            cupEntity.addEventListener('model-loaded', () => {
+              cupEntity.setAttribute('dynamic-body', {
+                mass: 0.3,           // 300g
+                shape: 'box',        // Forme de collision simplifiée
+                linearDamping: 0.3,  // Résistance de l'air
+                angularDamping: 0.3
+              });
+              
+              // Configurer les rebonds via le matériau physique
+              cupEntity.setAttribute('physics-material', {
+                restitution: 0.4,    // Rebond modéré (0-1)
+                friction: 0.5        // Friction au sol
+              });
+            });
+          }
           
           // Animation d'apparition
           cupEntity.setAttribute('animation', {
@@ -390,13 +497,21 @@
                 if (hitPose) {
                   // Surface détectée !
                   this.lastHitPose = hitPose.transform;
+                  
+                  // Extraire la normale de la surface à partir du quaternion
+                  // La normale d'une surface est le vecteur "up" (0, 1, 0) transformé
+                  const q = hitPose.transform.orientation;
+                  this.lastHitNormal = this.quaternionToNormal(q);
+                  
                   this.updateCursor(hitPose.transform, true);
                   
                   // Debug occasionnel (toutes les 60 frames)
                   this.hitCount = (this.hitCount || 0) + 1;
                   if (this.hitCount % 60 === 1) {
                     const pos = hitPose.transform.position;
-                    this.log(`Surface: ${pos.y.toFixed(2)}m`);
+                    const normal = this.lastHitNormal;
+                    const isHoriz = this.isHorizontalSurface(normal) ? '(horizontal)' : '(vertical)';
+                    this.log(`Surface: ${pos.y.toFixed(2)}m ${isHoriz}`);
                   }
                 }
               } else {
@@ -472,6 +587,308 @@
             }
           });
           this.placedCups = [];
+        }
+      });
+
+      /**
+       * =================================================================
+       * Composant : ar-plane-detector
+       * Description : Détecte les surfaces réelles (sol, murs, tables)
+       * et crée des colliders invisibles pour la physique
+       * =================================================================
+       */
+      AFRAME.registerComponent('ar-plane-detector', {
+        schema: {
+          showPlanes: { type: 'boolean', default: false },  // Afficher les plans en debug
+          horizontalColor: { type: 'color', default: '#00FF00' },  // Couleur sol/tables
+          verticalColor: { type: 'color', default: '#0088FF' }     // Couleur murs
+        },
+
+        init: function () {
+          this.detectedPlanes = new Map();  // Map<XRPlane, A-Frame Entity>
+          this.planeEntities = [];
+          this.xrSession = null;
+          this.xrRefSpace = null;
+          this.initialized = false;
+          this.planeCount = { horizontal: 0, vertical: 0 };
+          this.frameCount = 0;
+          this.debugTextEl = document.querySelector('#vr-debug-text');
+          
+          // Écouter les événements de session
+          this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR.bind(this));
+          this.el.sceneEl.addEventListener('exit-vr', this.onExitVR.bind(this));
+          
+          console.log('[Plane Detector] Initialisé (showPlanes:', this.data.showPlanes, ')');
+        },
+
+        log: function (message) {
+          console.log('[Plane Detector]', message);
+          // Mettre à jour le debug VR
+          if (this.debugTextEl) {
+            this.debugTextEl.setAttribute('value', 'Planes: ' + message);
+          }
+        },
+
+        onEnterVR: function () {
+          console.log('[Plane Detector] Entrée VR/AR');
+          
+          setTimeout(() => {
+            this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+            this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+            
+            if (this.xrSession) {
+              this.initialized = true;
+              console.log('[Plane Detector] Session OK');
+              
+              // Vérifier si plane-detection est disponible
+              if (this.xrSession.enabledFeatures) {
+                const hasPlaneDetection = this.xrSession.enabledFeatures.includes('plane-detection');
+                console.log('[Plane Detector] plane-detection disponible:', hasPlaneDetection);
+              }
+            }
+          }, 1000);
+        },
+
+        onExitVR: function () {
+          console.log('[Plane Detector] Sortie VR/AR');
+          this.cleanup();
+        },
+
+        tick: function (time, delta) {
+          if (!this.initialized || !this.xrSession || !this.xrRefSpace) {
+            return;
+          }
+          
+          const frame = this.el.sceneEl.frame;
+          if (!frame) return;
+          
+          this.frameCount++;
+          
+          // Vérifier si detectedPlanes existe sur le frame
+          if (!frame.detectedPlanes) {
+            // plane-detection pas supporté ou pas activé
+            if (this.frameCount === 60) {
+              this.log('Pas de planes (60 frames)');
+              console.warn('[Plane Detector] frame.detectedPlanes non disponible. Vérifiez que:');
+              console.warn('  1. plane-detection est dans les features');
+              console.warn('  2. Le Room Setup Quest est configuré');
+              console.warn('  3. L\'appareil supporte plane-detection');
+            }
+            return;
+          }
+          
+          // Log occasionnel
+          if (this.frameCount % 120 === 1 && frame.detectedPlanes.size > 0) {
+            this.log(`${frame.detectedPlanes.size} plans actifs`);
+          }
+          
+          // Parcourir tous les plans détectés
+          frame.detectedPlanes.forEach((plane) => {
+            // Vérifier si on a déjà créé une entité pour ce plan
+            if (!this.detectedPlanes.has(plane)) {
+              // Nouveau plan détecté !
+              this.createPlaneEntity(plane, frame);
+            } else {
+              // Mettre à jour la position du plan existant
+              this.updatePlaneEntity(plane, frame);
+            }
+          });
+          
+          // Supprimer les plans qui ne sont plus détectés
+          this.detectedPlanes.forEach((entity, plane) => {
+            if (!frame.detectedPlanes.has(plane)) {
+              this.removePlaneEntity(plane);
+            }
+          });
+        },
+
+        createPlaneEntity: function (plane, frame) {
+          try {
+            const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
+            if (!pose) return;
+            
+            const position = pose.transform.position;
+            const orientation = pose.transform.orientation;
+            
+            // Calculer les dimensions du plan à partir du polygon
+            const dimensions = this.calculatePlaneDimensions(plane.polygon);
+            if (!dimensions) return;
+            
+            // Créer l'entité A-Frame
+            const planeEntity = document.createElement('a-box');
+            
+            // Configuration de base
+            planeEntity.setAttribute('position', {
+              x: position.x,
+              y: position.y,
+              z: position.z
+            });
+            
+            // Quaternion pour l'orientation
+            planeEntity.object3D.quaternion.set(
+              orientation.x,
+              orientation.y,
+              orientation.z,
+              orientation.w
+            );
+            
+            // Dimensions (très fin en Y pour les plans horizontaux)
+            if (plane.orientation === 'horizontal') {
+              planeEntity.setAttribute('scale', {
+                x: dimensions.width,
+                y: 0.01,  // Très fin
+                z: dimensions.height
+              });
+              this.planeCount.horizontal++;
+            } else {
+              planeEntity.setAttribute('scale', {
+                x: dimensions.width,
+                y: dimensions.height,
+                z: 0.01  // Très fin
+              });
+              this.planeCount.vertical++;
+            }
+            
+            // Apparence
+            if (this.data.showPlanes) {
+              const color = plane.orientation === 'horizontal' 
+                ? this.data.horizontalColor 
+                : this.data.verticalColor;
+              
+              planeEntity.setAttribute('material', {
+                color: color,
+                opacity: 0.3,
+                transparent: true,
+                shader: 'flat'
+              });
+            } else {
+              planeEntity.setAttribute('visible', false);
+            }
+            
+            // Ajouter une classe pour identification
+            planeEntity.classList.add('detected-plane');
+            planeEntity.classList.add(plane.orientation === 'horizontal' ? 'plane-horizontal' : 'plane-vertical');
+            
+            // Stocker des infos sur le plan
+            planeEntity.dataset.planeOrientation = plane.orientation;
+            
+            // Ajouter à la scène
+            this.el.sceneEl.appendChild(planeEntity);
+            
+            // Enregistrer dans notre Map
+            this.detectedPlanes.set(plane, planeEntity);
+            this.planeEntities.push(planeEntity);
+            
+            console.log(`[Plane Detector] Nouveau plan ${plane.orientation}: ${dimensions.width.toFixed(2)}x${dimensions.height.toFixed(2)}m`);
+            console.log(`[Plane Detector] Total: ${this.planeCount.horizontal} horizontal, ${this.planeCount.vertical} vertical`);
+            
+          } catch (error) {
+            console.warn('[Plane Detector] Erreur création plan:', error);
+          }
+        },
+
+        updatePlaneEntity: function (plane, frame) {
+          const entity = this.detectedPlanes.get(plane);
+          if (!entity) return;
+          
+          try {
+            const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
+            if (!pose) return;
+            
+            // Mettre à jour la position
+            entity.object3D.position.set(
+              pose.transform.position.x,
+              pose.transform.position.y,
+              pose.transform.position.z
+            );
+            
+            // Mettre à jour l'orientation
+            entity.object3D.quaternion.set(
+              pose.transform.orientation.x,
+              pose.transform.orientation.y,
+              pose.transform.orientation.z,
+              pose.transform.orientation.w
+            );
+            
+          } catch (error) {
+            // Silencieux
+          }
+        },
+
+        removePlaneEntity: function (plane) {
+          const entity = this.detectedPlanes.get(plane);
+          if (entity) {
+            if (entity.parentNode) {
+              entity.parentNode.removeChild(entity);
+            }
+            
+            // Mettre à jour le compteur
+            if (entity.dataset.planeOrientation === 'horizontal') {
+              this.planeCount.horizontal--;
+            } else {
+              this.planeCount.vertical--;
+            }
+            
+            // Retirer de nos listes
+            this.detectedPlanes.delete(plane);
+            const idx = this.planeEntities.indexOf(entity);
+            if (idx > -1) {
+              this.planeEntities.splice(idx, 1);
+            }
+            
+            console.log('[Plane Detector] Plan supprimé');
+          }
+        },
+
+        calculatePlaneDimensions: function (polygon) {
+          if (!polygon || polygon.length < 3) {
+            return { width: 0.5, height: 0.5 };  // Valeur par défaut
+          }
+          
+          // Trouver les min/max pour calculer la bounding box
+          let minX = Infinity, maxX = -Infinity;
+          let minZ = Infinity, maxZ = -Infinity;
+          
+          for (const point of polygon) {
+            minX = Math.min(minX, point.x);
+            maxX = Math.max(maxX, point.x);
+            minZ = Math.min(minZ, point.z);
+            maxZ = Math.max(maxZ, point.z);
+          }
+          
+          return {
+            width: Math.max(maxX - minX, 0.1),
+            height: Math.max(maxZ - minZ, 0.1)
+          };
+        },
+
+        cleanup: function () {
+          // Supprimer toutes les entités de plan
+          this.planeEntities.forEach(entity => {
+            if (entity.parentNode) {
+              entity.parentNode.removeChild(entity);
+            }
+          });
+          
+          this.detectedPlanes.clear();
+          this.planeEntities = [];
+          this.planeCount = { horizontal: 0, vertical: 0 };
+          this.initialized = false;
+          
+          console.log('[Plane Detector] Nettoyage effectué');
+        },
+
+        remove: function () {
+          this.cleanup();
+        },
+
+        // Méthode publique pour récupérer les plans (utile pour la physique)
+        getPlanes: function () {
+          return {
+            all: this.planeEntities,
+            horizontal: this.planeEntities.filter(e => e.dataset.planeOrientation === 'horizontal'),
+            vertical: this.planeEntities.filter(e => e.dataset.planeOrientation === 'vertical')
+          };
         }
       });
     </script>
