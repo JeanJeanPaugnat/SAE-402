@@ -1,478 +1,431 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>☕ Coffee Cup AR - Simplifié</title>
-    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-    <!-- Physics system avec CANNON.js -->
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
-    <style>
-      body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
-      
-      #info {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 15px;
-        border-radius: 10px;
-        z-index: 1000;
-        max-width: 320px;
-      }
-      #info h2 { margin: 0 0 10px 0; font-size: 18px; }
-      #info p { margin: 5px 0; font-size: 14px; }
-      #count { color: #4CC3D9; font-weight: bold; }
-      #planes-count { color: #00FF00; }
-      #debug { font-size: 12px; color: #FFD700; margin-top: 10px; font-family: monospace; }
-      
-      #start-ar-btn {
-        position: fixed;
-        bottom: 30px;
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 18px 40px;
-        font-size: 20px;
-        font-weight: bold;
-        background: linear-gradient(135deg, #4CC3D9, #3498db);
-        color: white;
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        z-index: 9999;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        transition: transform 0.2s, box-shadow 0.2s;
-      }
-      #start-ar-btn:hover {
-        transform: translateX(-50%) scale(1.05);
-        box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Interface HTML -->
-    <div id="info">
-      <h2>☕ Coffee Cup AR</h2>
-      <p><strong>Bouton A</strong> = Spawn tasse en main</p>
-      <p><strong>Trigger</strong> = Lâcher la tasse</p>
-      <hr>
-      <p id="count">Tasses: 0</p>
-      <p id="planes-count">Plans détectés: 0</p>
-      <p id="debug">État: Prêt</p>
-    </div>
 
-    <button id="start-ar-btn">🥽 Démarrer en AR</button>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>☕ Coffee Cup AR - Simplifié</title>
+  <link rel="stylesheet" href="src/style.css">
+  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+  <!-- Physics system avec CANNON.js -->
+  <script
+    src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
 
-    <!-- Scène A-Frame -->
-    <a-scene 
-      webxr="requiredFeatures: local-floor; optionalFeatures: plane-detection, anchors; referenceSpaceType: local-floor;"
-      vr-mode-ui="enabled: false"
-      renderer="colorManagement: true; alpha: true; antialias: true"
-      background="color: transparent"
-      physics="driver: local; gravity: -9.8; debug: false"
-      ar-session-manager
-      ar-plane-detector="showPlanes: true">
-      
-      <!-- ============ ASSETS ============ -->
-      <a-assets>
-        <a-asset-item id="coffee-cup-model" src="./public/models/Coffee cup.glb"></a-asset-item>
-      </a-assets>
+</head>
 
-      <!-- ============ ÉCLAIRAGE ============ -->
-      <a-light type="ambient" intensity="0.8"></a-light>
-      <a-light type="directional" position="1 2 1" intensity="0.7"></a-light>
+<body>
+  <!-- Interface HTML -->
+  <div id="info">
+    <h2>☕ Coffee Cup AR</h2>
+    <p><strong>Bouton A</strong> = Spawn tasse en main</p>
+    <p><strong>Trigger</strong> = Lâcher la tasse</p>
+    <hr>
+    <p id="count">Tasses: 0</p>
+    <p id="planes-count">Plans détectés: 0</p>
+    <p id="debug">État: Prêt</p>
+  </div>
 
-      <!-- ============ CAMÉRA ============ -->
-      <a-camera position="0 1.6 0">
-        <!-- Texte de debug visible dans le casque -->
-        <a-text id="vr-debug-text" 
-                value="Prêt" 
-                position="0 0.35 -1" 
-                scale="0.4 0.4 0.4" 
-                color="#00FF00" 
-                align="center"
-                material="shader: flat">
-        </a-text>
-      </a-camera>
+  <button id="start-ar-btn">🥽 Démarrer en AR</button>
 
-      <!-- ============ MANETTES ============ -->
-      <a-entity id="left-controller"
-                oculus-touch-controls="hand: left">
-      </a-entity>
-      
-      <a-entity id="right-controller"
-                oculus-touch-controls="hand: right"
-                cup-spawner>
-      </a-entity>
+  <!-- Scène A-Frame -->
+  <a-scene
+    webxr="requiredFeatures: local-floor; optionalFeatures: plane-detection, anchors; referenceSpaceType: local-floor;"
+    vr-mode-ui="enabled: false" renderer="colorManagement: true; alpha: true; antialias: true"
+    background="color: transparent" physics="driver: local; gravity: -9.8; debug: false" ar-session-manager
+    ar-plane-detector="showPlanes: true">
 
-    </a-scene>
+    <!-- ============ ASSETS ============ -->
+    <a-assets>
+      <a-asset-item id="coffee-cup-model" src="./public/models/Coffee cup.glb"></a-asset-item>
+    </a-assets>
 
-    <script>
-      /**
-       * =================================================================
-       * Composant : ar-session-manager
-       * Description : Gère le démarrage de la session AR
-       * =================================================================
-       */
-      AFRAME.registerComponent('ar-session-manager', {
-        init: function () {
-          this.startBtn = document.querySelector('#start-ar-btn');
-          this.debugEl = document.querySelector('#debug');
-          this.debugVREl = document.querySelector('#vr-debug-text');
+    <!-- ============ ÉCLAIRAGE ============ -->
+    <a-light type="ambient" intensity="0.8"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.7"></a-light>
+
+    <!-- ============ CAMÉRA ============ -->
+    <a-camera position="0 1.6 0">
+      <!-- Texte de debug visible dans le casque -->
+      <a-text id="vr-debug-text" value="Prêt" position="0 0.35 -1" scale="0.4 0.4 0.4" color="#00FF00" align="center"
+        material="shader: flat">
+      </a-text>
+    </a-camera>
+
+    <!-- ============ MANETTES ============ -->
+    <a-entity id="left-controller" oculus-touch-controls="hand: left">
+    </a-entity>
+
+    <a-entity id="right-controller" oculus-touch-controls="hand: right" cup-spawner>
+    </a-entity>
+
+  </a-scene>
+
+  <script>
+    /**
+     * =================================================================
+     * Composant : ar-session-manager
+     * Description : Gère le démarrage de la session AR
+     * =================================================================
+     */
+    AFRAME.registerComponent('ar-session-manager', {
+      init: function () {
+        this.startBtn = document.querySelector('#start-ar-btn');
+        this.debugEl = document.querySelector('#debug');
+        this.debugVREl = document.querySelector('#vr-debug-text');
+        this.sessionActive = false;
+
+        this.setupButton();
+
+        this.el.sceneEl.addEventListener('enter-vr', () => {
+          this.sessionActive = true;
+          this.log('Session AR active');
+          this.startBtn.style.display = 'none';
+        });
+
+        this.el.sceneEl.addEventListener('exit-vr', () => {
           this.sessionActive = false;
-          
-          this.setupButton();
-          
-          this.el.sceneEl.addEventListener('enter-vr', () => {
-            this.sessionActive = true;
-            this.log('Session AR active');
-            this.startBtn.style.display = 'none';
-          });
-          
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.sessionActive = false;
-            this.log('Session AR terminée');
-            this.startBtn.style.display = 'block';
-          });
-        },
-        
-        log: function (msg) {
-          console.log('[AR]', msg);
-          if (this.debugEl) this.debugEl.textContent = 'État: ' + msg;
-          if (this.debugVREl) this.debugVREl.setAttribute('value', msg);
-        },
-        
-        setupButton: function () {
-          const self = this;
-          
-          this.startBtn.addEventListener('click', async () => {
-            try {
-              if (!navigator.xr) throw new Error('WebXR non supporté');
-              
-              const supported = await navigator.xr.isSessionSupported('immersive-ar');
-              if (!supported) throw new Error('AR non supporté');
-              
-              self.log('Démarrage AR...');
-              
-              const session = await navigator.xr.requestSession('immersive-ar', {
-                requiredFeatures: ['local-floor'],
-                optionalFeatures: ['plane-detection', 'anchors', 'dom-overlay'],
-                domOverlay: { root: document.querySelector('#info') }
-              });
-              
-              self.el.sceneEl.renderer.xr.setSession(session);
-              self.startBtn.style.display = 'none';
-              
-            } catch (err) {
-              self.log('Erreur: ' + err.message);
-              alert('Erreur: ' + err.message);
-            }
-          });
-        }
-      });
+          this.log('Session AR terminée');
+          this.startBtn.style.display = 'block';
+        });
+      },
 
-      /**
-       * =================================================================
-       * Composant : cup-spawner
-       * Description : Spawn une tasse avec Bouton A, la lâche avec Trigger
-       * =================================================================
-       */
-      AFRAME.registerComponent('cup-spawner', {
-        schema: {
-          cupScale: { type: 'number', default: 0.1 }
-        },
+      log: function (msg) {
+        console.log('[AR]', msg);
+        if (this.debugEl) this.debugEl.textContent = 'État: ' + msg;
+        if (this.debugVREl) this.debugVREl.setAttribute('value', msg);
+      },
 
-        init: function () {
-          this.heldCup = null;
-          this.cupCount = 0;
-          this.allCups = [];
-          
-          // Écouter les boutons
-          this.el.addEventListener('abuttondown', this.onAButton.bind(this));
-          this.el.addEventListener('triggerdown', this.onTrigger.bind(this));
-          
-          console.log('☕ Cup-spawner initialisé');
-        },
+      setupButton: function () {
+        const self = this;
 
-        onAButton: function () {
-          if (this.heldCup) {
-            this.log('Déjà une tasse en main !');
-            return;
-          }
-          this.spawnCupInHand();
-        },
-
-        spawnCupInHand: function () {
-          const cup = document.createElement('a-entity');
-          cup.setAttribute('gltf-model', '#coffee-cup-model');
-          cup.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
-          cup.setAttribute('id', `cup-${Date.now()}`);
-          cup.setAttribute('position', '0 0.05 -0.05');
-          
-          // Attacher à la manette
-          this.el.appendChild(cup);
-          this.heldCup = cup;
-          this.cupCount++;
-          
-          // Animation d'apparition
-          cup.addEventListener('model-loaded', () => {
-            cup.setAttribute('animation', {
-              property: 'scale',
-              from: '0 0 0',
-              to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
-              dur: 300,
-              easing: 'easeOutBack'
-            });
-          });
-          
-          this.log('Tasse en main ! Trigger = lâcher');
-          this.updateCount();
-        },
-
-        onTrigger: function () {
-          if (!this.heldCup) return;
-          this.releaseCup();
-        },
-
-        releaseCup: function () {
-          if (!this.heldCup) return;
-          
-          // Récupérer position/rotation mondiale
-          const worldPos = new THREE.Vector3();
-          const worldQuat = new THREE.Quaternion();
-          this.heldCup.object3D.getWorldPosition(worldPos);
-          this.heldCup.object3D.getWorldQuaternion(worldQuat);
-          
-          // Détacher de la manette
-          const cup = this.heldCup;
-          this.el.removeChild(cup);
-          
-          // Ajouter à la scène
-          this.el.sceneEl.appendChild(cup);
-          
-          // Positionner dans le monde
-          cup.object3D.position.copy(worldPos);
-          cup.object3D.quaternion.copy(worldQuat);
-          
-          // Ajouter la physique après un court délai
-          setTimeout(() => {
-            cup.setAttribute('dynamic-body', {
-              mass: 0.3,
-              shape: 'box',
-              linearDamping: 0.3,
-              angularDamping: 0.5
-            });
-            
-            this.log('Tasse lâchée !');
-          }, 50);
-          
-          this.allCups.push(cup);
-          this.heldCup = null;
-        },
-
-        log: function (msg) {
-          console.log('☕', msg);
-          const debugEl = document.querySelector('#debug');
-          const debugVR = document.querySelector('#vr-debug-text');
-          if (debugEl) debugEl.textContent = 'État: ' + msg;
-          if (debugVR) debugVR.setAttribute('value', msg);
-        },
-
-        updateCount: function () {
-          const countEl = document.querySelector('#count');
-          if (countEl) countEl.textContent = `Tasses: ${this.cupCount}`;
-        }
-      });
-
-      /**
-       * =================================================================
-       * Composant : ar-plane-detector
-       * Description : Détecte les plans et crée des colliders physiques
-       * =================================================================
-       */
-      AFRAME.registerComponent('ar-plane-detector', {
-        schema: {
-          showPlanes: { type: 'boolean', default: true },
-          horizontalColor: { type: 'color', default: '#00FF00' },
-          verticalColor: { type: 'color', default: '#0088FF' }
-        },
-
-        init: function () {
-          this.detectedPlanes = new Map();
-          this.xrSession = null;
-          this.xrRefSpace = null;
-          this.initialized = false;
-          this.frameCount = 0;
-          
-          this.el.sceneEl.addEventListener('enter-vr', () => {
-            setTimeout(() => this.initSession(), 1000);
-          });
-          
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.cleanup();
-          });
-          
-          console.log('[Planes] Composant initialisé');
-        },
-
-        initSession: function () {
-          this.xrSession = this.el.sceneEl.renderer.xr.getSession();
-          this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
-          
-          if (this.xrSession) {
-            this.initialized = true;
-            console.log('[Planes] Session OK');
-            
-            if (this.xrSession.enabledFeatures) {
-              const hasPlanes = this.xrSession.enabledFeatures.includes('plane-detection');
-              console.log('[Planes] plane-detection:', hasPlanes);
-            }
-          }
-        },
-
-        tick: function () {
-          if (!this.initialized || !this.xrSession || !this.xrRefSpace) return;
-          
-          const frame = this.el.sceneEl.frame;
-          if (!frame || !frame.detectedPlanes) return;
-          
-          this.frameCount++;
-          
-          // Mettre à jour le compteur de plans
-          if (this.frameCount % 30 === 0) {
-            this.updatePlanesCount(frame.detectedPlanes.size);
-          }
-          
-          // Créer/mettre à jour les plans
-          frame.detectedPlanes.forEach((plane) => {
-            if (!this.detectedPlanes.has(plane)) {
-              this.createPlane(plane, frame);
-            } else {
-              this.updatePlane(plane, frame);
-            }
-          });
-          
-          // Supprimer les plans obsolètes
-          this.detectedPlanes.forEach((entity, plane) => {
-            if (!frame.detectedPlanes.has(plane)) {
-              this.removePlane(plane);
-            }
-          });
-        },
-
-        createPlane: function (plane, frame) {
+        this.startBtn.addEventListener('click', async () => {
           try {
-            const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
-            if (!pose) return;
-            
-            const pos = pose.transform.position;
-            const ori = pose.transform.orientation;
-            const dims = this.getDimensions(plane.polygon);
-            
-            // Créer l'entité
-            const entity = document.createElement('a-box');
-            entity.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
-            entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
-            
-            // Dimensions selon orientation
-            const isHorizontal = plane.orientation === 'horizontal';
-            entity.setAttribute('scale', {
-              x: dims.width,
-              y: isHorizontal ? 0.02 : dims.height,
-              z: isHorizontal ? dims.height : 0.02
+            if (!navigator.xr) throw new Error('WebXR non supporté');
+
+            const supported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (!supported) throw new Error('AR non supporté');
+
+            self.log('Démarrage AR...');
+
+            const session = await navigator.xr.requestSession('immersive-ar', {
+              requiredFeatures: ['local-floor'],
+              optionalFeatures: ['plane-detection', 'anchors', 'dom-overlay'],
+              domOverlay: { root: document.querySelector('#info') }
             });
-            
-            // Apparence (debug)
-            if (this.data.showPlanes) {
-              entity.setAttribute('material', {
-                color: isHorizontal ? this.data.horizontalColor : this.data.verticalColor,
-                opacity: 0.3,
-                transparent: true,
-                shader: 'flat'
-              });
-            } else {
-              entity.setAttribute('visible', false);
-            }
-            
-            // ⚡ PHYSIQUE : Collider statique
-            entity.setAttribute('static-body', '');
-            
-            entity.classList.add('plane', isHorizontal ? 'horizontal' : 'vertical');
-            
-            this.el.sceneEl.appendChild(entity);
-            this.detectedPlanes.set(plane, entity);
-            
-            console.log(`[Planes] Nouveau plan ${plane.orientation}: ${dims.width.toFixed(2)}x${dims.height.toFixed(2)}m`);
-            
-          } catch (e) {
-            console.warn('[Planes] Erreur création:', e);
+
+            self.el.sceneEl.renderer.xr.setSession(session);
+            self.startBtn.style.display = 'none';
+
+          } catch (err) {
+            self.log('Erreur: ' + err.message);
+            alert('Erreur: ' + err.message);
           }
-        },
+        });
+      }
+    });
 
-        updatePlane: function (plane, frame) {
-          const entity = this.detectedPlanes.get(plane);
-          if (!entity) return;
-          
-          try {
-            const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
-            if (!pose) return;
-            
-            const pos = pose.transform.position;
-            const ori = pose.transform.orientation;
-            
-            entity.object3D.position.set(pos.x, pos.y, pos.z);
-            entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
-            
-          } catch (e) {}
-        },
+    /**
+     * =================================================================
+     * Composant : cup-spawner
+     * Description : Spawn une tasse avec Bouton A, la lâche avec Trigger
+     * =================================================================
+     */
+    AFRAME.registerComponent('cup-spawner', {
+      schema: {
+        cupScale: { type: 'number', default: 0.1 }
+      },
 
-        removePlane: function (plane) {
-          const entity = this.detectedPlanes.get(plane);
-          if (entity && entity.parentNode) {
-            entity.parentNode.removeChild(entity);
-          }
-          this.detectedPlanes.delete(plane);
-          console.log('[Planes] Plan supprimé');
-        },
+      init: function () {
+        this.heldCup = null;
+        this.cupCount = 0;
+        this.allCups = [];
 
-        getDimensions: function (polygon) {
-          if (!polygon || polygon.length < 3) {
-            return { width: 0.5, height: 0.5 };
-          }
-          
-          let minX = Infinity, maxX = -Infinity;
-          let minZ = Infinity, maxZ = -Infinity;
-          
-          for (const p of polygon) {
-            minX = Math.min(minX, p.x);
-            maxX = Math.max(maxX, p.x);
-            minZ = Math.min(minZ, p.z);
-            maxZ = Math.max(maxZ, p.z);
-          }
-          
-          return {
-            width: Math.max(maxX - minX, 0.1),
-            height: Math.max(maxZ - minZ, 0.1)
-          };
-        },
+        // Écouter les boutons
+        this.el.addEventListener('abuttondown', this.onAButton.bind(this));
+        this.el.addEventListener('triggerdown', this.onTrigger.bind(this));
 
-        updatePlanesCount: function (count) {
-          const el = document.querySelector('#planes-count');
-          if (el) el.textContent = `Plans détectés: ${count}`;
-        },
+        console.log('☕ Cup-spawner initialisé');
+      },
 
-        cleanup: function () {
-          this.detectedPlanes.forEach((entity) => {
-            if (entity.parentNode) entity.parentNode.removeChild(entity);
-          });
-          this.detectedPlanes.clear();
-          this.initialized = false;
-          console.log('[Planes] Nettoyé');
+      onAButton: function () {
+        if (this.heldCup) {
+          this.log('Déjà une tasse en main !');
+          return;
         }
-      });
-    </script>
-  </body>
+        this.spawnCupInHand();
+      },
+
+      spawnCupInHand: function () {
+        const cup = document.createElement('a-entity');
+        cup.setAttribute('gltf-model', '#coffee-cup-model');
+        cup.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+        cup.setAttribute('id', `cup-${Date.now()}`);
+        cup.setAttribute('position', '0 0.05 -0.05');
+
+        // Attacher à la manette
+        this.el.appendChild(cup);
+        this.heldCup = cup;
+        this.cupCount++;
+
+        // Animation d'apparition
+        cup.addEventListener('model-loaded', () => {
+          cup.setAttribute('animation', {
+            property: 'scale',
+            from: '0 0 0',
+            to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
+            dur: 300,
+            easing: 'easeOutBack'
+          });
+        });
+
+        this.log('Tasse en main ! Trigger = lâcher');
+        this.updateCount();
+      },
+
+      onTrigger: function () {
+        if (!this.heldCup) return;
+        this.releaseCup();
+      },
+
+      releaseCup: function () {
+        if (!this.heldCup) return;
+
+        // Récupérer position/rotation mondiale
+        const worldPos = new THREE.Vector3();
+        const worldQuat = new THREE.Quaternion();
+        this.heldCup.object3D.getWorldPosition(worldPos);
+        this.heldCup.object3D.getWorldQuaternion(worldQuat);
+
+        // Détacher de la manette
+        const cup = this.heldCup;
+        this.el.removeChild(cup);
+
+        // Ajouter à la scène
+        this.el.sceneEl.appendChild(cup);
+
+        // Positionner dans le monde
+        cup.object3D.position.copy(worldPos);
+        cup.object3D.quaternion.copy(worldQuat);
+
+        // Ajouter la physique après un court délai
+        setTimeout(() => {
+          cup.setAttribute('dynamic-body', {
+            mass: 0.3,
+            shape: 'box',
+            linearDamping: 0.3,
+            angularDamping: 0.5
+          });
+
+          this.log('Tasse lâchée !');
+        }, 50);
+
+        this.allCups.push(cup);
+        this.heldCup = null;
+      },
+
+      log: function (msg) {
+        console.log('☕', msg);
+        const debugEl = document.querySelector('#debug');
+        const debugVR = document.querySelector('#vr-debug-text');
+        if (debugEl) debugEl.textContent = 'État: ' + msg;
+        if (debugVR) debugVR.setAttribute('value', msg);
+      },
+
+      updateCount: function () {
+        const countEl = document.querySelector('#count');
+        if (countEl) countEl.textContent = `Tasses: ${this.cupCount}`;
+      }
+    });
+
+    /**
+     * =================================================================
+     * Composant : ar-plane-detector
+     * Description : Détecte les plans et crée des colliders physiques
+     * =================================================================
+     */
+    AFRAME.registerComponent('ar-plane-detector', {
+      schema: {
+        showPlanes: { type: 'boolean', default: true },
+        horizontalColor: { type: 'color', default: '#00FF00' },
+        verticalColor: { type: 'color', default: '#0088FF' }
+      },
+
+      init: function () {
+        this.detectedPlanes = new Map();
+        this.xrSession = null;
+        this.xrRefSpace = null;
+        this.initialized = false;
+        this.frameCount = 0;
+
+        this.el.sceneEl.addEventListener('enter-vr', () => {
+          setTimeout(() => this.initSession(), 1000);
+        });
+
+        this.el.sceneEl.addEventListener('exit-vr', () => {
+          this.cleanup();
+        });
+
+        console.log('[Planes] Composant initialisé');
+      },
+
+      initSession: function () {
+        this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+        this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+
+        if (this.xrSession) {
+          this.initialized = true;
+          console.log('[Planes] Session OK');
+
+          if (this.xrSession.enabledFeatures) {
+            const hasPlanes = this.xrSession.enabledFeatures.includes('plane-detection');
+            console.log('[Planes] plane-detection:', hasPlanes);
+          }
+        }
+      },
+
+      tick: function () {
+        if (!this.initialized || !this.xrSession || !this.xrRefSpace) return;
+
+        const frame = this.el.sceneEl.frame;
+        if (!frame || !frame.detectedPlanes) return;
+
+        this.frameCount++;
+
+        // Mettre à jour le compteur de plans
+        if (this.frameCount % 30 === 0) {
+          this.updatePlanesCount(frame.detectedPlanes.size);
+        }
+
+        // Créer/mettre à jour les plans
+        frame.detectedPlanes.forEach((plane) => {
+          if (!this.detectedPlanes.has(plane)) {
+            this.createPlane(plane, frame);
+          } else {
+            this.updatePlane(plane, frame);
+          }
+        });
+
+        // Supprimer les plans obsolètes
+        this.detectedPlanes.forEach((entity, plane) => {
+          if (!frame.detectedPlanes.has(plane)) {
+            this.removePlane(plane);
+          }
+        });
+      },
+
+      createPlane: function (plane, frame) {
+        try {
+          const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
+          if (!pose) return;
+
+          const pos = pose.transform.position;
+          const ori = pose.transform.orientation;
+          const dims = this.getDimensions(plane.polygon);
+
+          // Créer l'entité
+          const entity = document.createElement('a-box');
+          entity.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
+          entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
+
+          // Dimensions selon orientation
+          const isHorizontal = plane.orientation === 'horizontal';
+          entity.setAttribute('scale', {
+            x: dims.width,
+            y: isHorizontal ? 0.02 : dims.height,
+            z: isHorizontal ? dims.height : 0.02
+          });
+
+          // Apparence (debug)
+          if (this.data.showPlanes) {
+            entity.setAttribute('material', {
+              color: isHorizontal ? this.data.horizontalColor : this.data.verticalColor,
+              opacity: 0.3,
+              transparent: true,
+              shader: 'flat'
+            });
+          } else {
+            entity.setAttribute('visible', false);
+          }
+
+          // ⚡ PHYSIQUE : Collider statique
+          entity.setAttribute('static-body', '');
+
+          entity.classList.add('plane', isHorizontal ? 'horizontal' : 'vertical');
+
+          this.el.sceneEl.appendChild(entity);
+          this.detectedPlanes.set(plane, entity);
+
+          console.log(`[Planes] Nouveau plan ${plane.orientation}: ${dims.width.toFixed(2)}x${dims.height.toFixed(2)}m`);
+
+        } catch (e) {
+          console.warn('[Planes] Erreur création:', e);
+        }
+      },
+
+      updatePlane: function (plane, frame) {
+        const entity = this.detectedPlanes.get(plane);
+        if (!entity) return;
+
+        try {
+          const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
+          if (!pose) return;
+
+          const pos = pose.transform.position;
+          const ori = pose.transform.orientation;
+
+          entity.object3D.position.set(pos.x, pos.y, pos.z);
+          entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
+
+        } catch (e) { }
+      },
+
+      removePlane: function (plane) {
+        const entity = this.detectedPlanes.get(plane);
+        if (entity && entity.parentNode) {
+          entity.parentNode.removeChild(entity);
+        }
+        this.detectedPlanes.delete(plane);
+        console.log('[Planes] Plan supprimé');
+      },
+
+      getDimensions: function (polygon) {
+        if (!polygon || polygon.length < 3) {
+          return { width: 0.5, height: 0.5 };
+        }
+
+        let minX = Infinity, maxX = -Infinity;
+        let minZ = Infinity, maxZ = -Infinity;
+
+        for (const p of polygon) {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minZ = Math.min(minZ, p.z);
+          maxZ = Math.max(maxZ, p.z);
+        }
+
+        return {
+          width: Math.max(maxX - minX, 0.1),
+          height: Math.max(maxZ - minZ, 0.1)
+        };
+      },
+
+      updatePlanesCount: function (count) {
+        const el = document.querySelector('#planes-count');
+        if (el) el.textContent = `Plans détectés: ${count}`;
+      },
+
+      cleanup: function () {
+        this.detectedPlanes.forEach((entity) => {
+          if (entity.parentNode) entity.parentNode.removeChild(entity);
+        });
+        this.detectedPlanes.clear();
+        this.initialized = false;
+        console.log('[Planes] Nettoyé');
+      }
+    });
+  </script>
+</body>
+
 </html>
