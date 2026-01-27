@@ -1,0 +1,182 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Test Simple - Détection de Plans</title>
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <script src="./components/ar-plane-examples.js"></script>
+    <style>
+      body { 
+        margin: 0; 
+        font-family: Arial, sans-serif; 
+      }
+      #overlay {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.85);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        max-width: 320px;
+        z-index: 1000;
+      }
+      h1 {
+        margin: 0 0 10px 0;
+        font-size: 18px;
+        color: #00AAFF;
+      }
+      .info {
+        font-size: 13px;
+        line-height: 1.6;
+        margin: 10px 0;
+      }
+      .step {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+      .status {
+        background: rgba(0, 170, 255, 0.2);
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 10px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Interface utilisateur -->
+    <div id="overlay">
+      <h1>🔷 Test Détection de Plans</h1>
+      
+      <div class="info">
+        <strong>Comment l'utiliser :</strong>
+        <div class="step">1. Cliquez sur "Enter AR"</div>
+        <div class="step">2. Les plans s'affichent automatiquement</div>
+        <div class="step">3. Cliquez pour placer des cubes</div>
+      </div>
+
+      <div class="status">
+        <div id="plane-status">Plans: En attente...</div>
+        <div id="session-status" style="font-size: 11px; margin-top: 5px;">
+          Session: Non démarrée
+        </div>
+      </div>
+
+      <div style="font-size: 11px; color: #888; margin-top: 10px;">
+        💡 Bleu = horizontal (sol, table)<br>
+        💡 Orange = vertical (mur)
+      </div>
+    </div>
+
+    <!-- Scène A-Frame -->
+    <a-scene 
+      webxr="requiredFeatures: plane-detection, local-floor;"
+      vr-mode-ui="enabled: false"
+      simple-plane-viewer
+      place-on-planes
+      plane-info>
+      
+      <!-- Caméra avec interface dans le casque -->
+      <a-camera position="0 1.6 0">
+        <!-- Compteur de plans -->
+        <a-text 
+          plane-counter
+          position="0 0.4 -1.5" 
+          scale="0.7 0.7 0.7" 
+          align="center"
+          width="3">
+        </a-text>
+
+        <!-- Instructions -->
+        <a-text 
+          value="Regardez autour de vous&#10;Cliquez pour placer des cubes" 
+          position="0 -0.2 -1.5" 
+          scale="0.4 0.4 0.4" 
+          color="#FFFFFF" 
+          align="center"
+          width="4">
+        </a-text>
+
+        <!-- Réticule de visée -->
+        <a-ring 
+          position="0 0 -1" 
+          radius-inner="0.015" 
+          radius-outer="0.025" 
+          color="#00FF00">
+        </a-ring>
+      </a-camera>
+
+      <!-- Lumières -->
+      <a-light type="ambient" color="#BBB" intensity="0.8"></a-light>
+      <a-light type="directional" color="#FFF" intensity="0.6" position="1 2 1"></a-light>
+      <a-light type="point" color="#FFC" intensity="0.3" position="0 2 0"></a-light>
+
+      <!-- Sol de référence (invisible en AR) -->
+      <a-plane 
+        position="0 0 0" 
+        rotation="-90 0 0" 
+        width="20" 
+        height="20" 
+        color="#333" 
+        visible="false">
+      </a-plane>
+    </a-scene>
+
+    <script>
+      // Mise à jour de l'interface
+      const scene = document.querySelector('a-scene');
+      let updateInterval = null;
+
+      scene.addEventListener('enter-vr', () => {
+        console.log('🚀 Mode AR démarré');
+        document.querySelector('#session-status').textContent = 'Session: Active ✓';
+        document.querySelector('#session-status').style.color = '#00FF00';
+
+        // Démarrer la mise à jour continue
+        updateInterval = setInterval(() => {
+          const session = scene.renderer?.xr?.getSession();
+          if (session?.detectedPlanes) {
+            const count = session.detectedPlanes.size;
+            
+            let horizontal = 0;
+            let vertical = 0;
+            session.detectedPlanes.forEach(plane => {
+              if (plane.orientation === 'horizontal') horizontal++;
+              else vertical++;
+            });
+
+            document.querySelector('#plane-status').innerHTML = 
+              `Plans: ${count}<br>` +
+              `<span style="font-size: 11px;">` +
+              `H: ${horizontal} | V: ${vertical}` +
+              `</span>`;
+          }
+        }, 500);
+      });
+
+      scene.addEventListener('exit-vr', () => {
+        console.log('👋 Mode AR terminé');
+        document.querySelector('#session-status').textContent = 'Session: Terminée';
+        document.querySelector('#session-status').style.color = '#FF6666';
+        document.querySelector('#plane-status').textContent = 'Plans: En attente...';
+        
+        if (updateInterval) {
+          clearInterval(updateInterval);
+          updateInterval = null;
+        }
+      });
+
+      // Log au démarrage
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔷 TEST DE DÉTECTION DE PLANS');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('✓ Composants chargés');
+      console.log('✓ Scène initialisée');
+      console.log('→ Cliquez sur "Enter AR" pour commencer');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    </script>
+  </body>
+</html>
