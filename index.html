@@ -1,229 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>☕ Coffee Cup AR - SAE 402</title>
-  <link rel="stylesheet" href="src/style.css">
-  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
-  <!-- Physics system avec CANNON.js -->
-  <script
-    src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
-
-  <!-- Composants externes -->
-  <script src="./src/components/hand-grab.js"></script>
-  <script src="./src/components/real-world-physics.js"></script>
-  <script src="./src/components/ar-plane-detection.js"></script>
-
-  <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
-
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 15px;
-      border-radius: 10px;
-      z-index: 1000;
-      max-width: 320px;
-    }
-
-    #info h2 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
-    }
-
-    #info p {
-      margin: 5px 0;
-      font-size: 14px;
-    }
-
-    #count {
-      color: #4CC3D9;
-      font-weight: bold;
-    }
-
-    #debug {
-      font-size: 12px;
-      color: #FFD700;
-      margin-top: 10px;
-      font-family: monospace;
-    }
-
-    #start-ar-btn {
-      position: fixed;
-      bottom: 30px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 18px 40px;
-      font-size: 20px;
-      font-weight: bold;
-      background: linear-gradient(135deg, #4CC3D9, #3498db);
-      color: white;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      z-index: 9999;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    #start-ar-btn:hover {
-      transform: translateX(-50%) scale(1.05);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-    }
-  </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAE 402 - Coffee Quest AR</title>
 </head>
 
 <body>
-  <!-- Interface HTML visible sur l'écran -->
-  <div id="info">
-    <h2>☕ Coffee Cup AR</h2>
-    <p>Utilisez votre espace réel configuré !</p>
-    <p><strong>A</strong> : Spawner tasse | <strong>Grip</strong> : Attraper</p>
-    <p id="count">Tasses placées: 0</p>
-    <p id="debug">État: Prêt</p>
+  <div id="app"></div>
+
+  <!-- UI Overlay -->
+  <div id="info"
+    style="position: absolute; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px;">
+    <h1>☕ Coffee Quest - Meshing Mode</h1>
+    <p>Regardez autour pour scanner la pièce.</p>
+    <p>Les surfaces détectées apparaîtront en fil de fer vert.</p>
+    <button id="enter-ar"
+      style="padding: 10px 20px; font-size: 1.2rem; background: #0cebeb; border: none; border-radius: 5px; cursor: pointer;">
+      Démarrer AR (Mesh)
+    </button>
   </div>
 
-  <button id="start-ar-btn">🥽 Démarrer en AR</button>
+  <!-- Scene -->
+  <a-scene embedded webxr="requiredFeatures: local-floor; optionalFeatures: mesh-detection; overlayElement: #info;"
+    renderer="colorManagement: true; physicallyCorrectLights: true;"
+    ar-meshing="enabled: true; visualize: true; color: #0cebeb" physics="debug: false; gravity: -9.8">
 
-  <!-- Scène A-Frame -->
-  <!-- IMPORTANT: Disable autoCapture to use existing room setup -->
-  <!-- Add plane-detection, mesh-detection to optionalFeatures -->
-  <a-scene
-    webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking, plane-detection, mesh-detection, dom-overlay; overlayElement: #info; referenceSpaceType: local-floor;"
-    vr-mode-ui="enabled: false"
-    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true"
-    background="color: transparent" physics="driver: local; gravity: -9.8; debug: false" ar-session-manager
-    ar-plane-detection="visualizePlanes: true; autoCapture: false" real-world-physics="enablePhysics: true"
-    ar-plane-collider>
+    <!-- Initial Light -->
+    <a-light type="directional" position="1 2 1" intensity="1"></a-light>
+    <a-light type="ambient" intensity="0.5"></a-light>
 
-    <!-- ============ ASSETS ============ -->
-    <a-assets>
-      <a-asset-item id="coffee-cup-model" src="./public/models/Coffee cup.glb"></a-asset-item>
-    </a-assets>
-
-    <!-- ============ ÉCLAIRAGE ============ -->
-    <a-light type="ambient" intensity="0.7"></a-light>
-    <a-light type="directional" position="1 2 1" intensity="0.9" cast-shadow="true"></a-light>
-
-    <!-- ============ CAMÉRA ============ -->
-    <a-camera position="0 1.6 0">
-      <!-- TENTATIVE DE DEBUG VISUEL: Cube rouge qui tourne -->
-      <a-box position="0 0 -1" scale="0.05 0.05 0.05" color="red"
-        animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-    </a-camera>
-
-    <!-- ============ CONTROLEURS ============ -->
-    <!-- Contrôleur gauche: Main ou Manette -->
-    <a-entity id="left-hand" hand-tracking-controls="hand: left; modelStyle: mesh; modelColor: #4CC3D9"
-      hand-grab="hand: left">
-      <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
+    <!-- Camera -->
+    <a-entity id="rig" position="0 0 0">
+      <a-camera position="0 1.6 0" look-controls="magicWindowTrackingEnabled: false"></a-camera>
+      <a-entity oculus-touch-controls="hand: left"></a-entity>
+      <a-entity oculus-touch-controls="hand: right"></a-entity>
     </a-entity>
-    <a-entity id="left-controller" oculus-touch-controls="hand: left" controller-grab="hand: left"></a-entity>
-
-    <!-- Contrôleur droit: Main ou Manette + Spawner -->
-    <a-entity id="right-hand" hand-tracking-controls="hand: right; modelStyle: mesh; modelColor: #4CC3D9"
-      hand-grab="hand: right">
-      <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
-    </a-entity>
-    <a-entity id="right-controller" oculus-touch-controls="hand: right" controller-grab="hand: right"
-      cup-spawner></a-entity>
 
   </a-scene>
 
-  <!-- ============ MANAGER DE SESSION ============ -->
+  <script type="module" src="/src/main.js"></script>
+
   <script>
-    AFRAME.registerComponent('ar-session-manager', {
-      init: function () {
-        this.startBtn = document.querySelector('#start-ar-btn');
-        this.setupButton();
-        this.el.sceneEl.addEventListener('enter-vr', () => this.startBtn.style.display = 'none');
-        this.el.sceneEl.addEventListener('exit-vr', () => this.startBtn.style.display = 'block');
-      },
-      setupButton: function () {
-        const self = this;
-        this.startBtn.addEventListener('click', async () => {
-          console.log("Tentative d'entrée en VR/AR via A-Frame...");
-          // Utilisation standard A-Frame qui gère tout (overlay, session, boucle de rendu)
-          // La config est dans <a-scene webxr="...">
-          try {
-            if (navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')) {
-              await self.el.sceneEl.enterVR();
-            } else {
-              alert("AR non supporté sur cet appareil.");
-            }
-          } catch (e) {
-            console.error("Erreur enterVR:", e);
-            alert("Erreur: " + e.message);
-          }
-        });
-      }
+    const btn = document.getElementById('enter-ar');
+    const scene = document.querySelector('a-scene');
+
+    btn.addEventListener('click', () => {
+      scene.enterVR();
     });
 
-    /**
-     * Composant simple pour spawner des tasses
-     */
-    AFRAME.registerComponent('cup-spawner', {
-      schema: { cupScale: { type: 'number', default: 0.1 } },
-      init: function () {
-        this.el.addEventListener('abuttondown', this.spawnCup.bind(this));
+    scene.addEventListener('enter-vr', () => {
+      btn.textContent = 'Scanner en cours...';
+      btn.style.display = 'none';
+    });
 
-        // Si on utilise le tracking des mains, on peut ajouter un geste ici plus tard
-        console.log('☕ Spawner prêt - Appuyez sur A');
-      },
-      spawnCup: function () {
-        // Position devant la manette
-        const pos = new THREE.Vector3(0, 0.1, -0.2);
-        pos.applyMatrix4(this.el.object3D.matrixWorld);
-
-        const rot = this.el.object3D.quaternion.clone();
-
-        const cup = document.createElement('a-entity');
-        cup.setAttribute('gltf-model', '#coffee-cup-model');
-        const s = this.data.cupScale;
-        cup.setAttribute('scale', `${s} ${s} ${s}`);
-        cup.setAttribute('position', pos);
-        cup.setAttribute('quaternion', rot); // Rotation initiale
-
-        // Rendre grabbable
-        cup.setAttribute('grabbable', '');
-
-        // Physique DYNAMIQUE pour qu'elle tombe
-        // On attend que le modèle soit chargé pour la bounding box correcte
-        cup.addEventListener('model-loaded', () => {
-          cup.setAttribute('dynamic-body', {
-            mass: 0.5,
-            shape: 'hull', // Plus précis que 'box' pour une tasse
-            linearDamping: 0.2,
-            angularDamping: 0.2
-          });
-
-          cup.setAttribute('physics-material', {
-            restitution: 0.3, // Rebond modéré
-            friction: 0.7     // Reste bien sur la table
-          });
-        });
-
-        this.el.sceneEl.appendChild(cup);
-        console.log('Tasse spawnée!');
-
-        // Update compteur (optionnel)
-        const countEl = document.querySelector('#count');
-        if (countEl) {
-          const current = parseInt(countEl.textContent.replace(/[^0-9]/g, '')) || 0;
-          countEl.textContent = `Tasses placées: ${current + 1}`;
-        }
-      }
+    scene.addEventListener('exit-vr', () => {
+      btn.textContent = 'Démarrer AR (Mesh)';
+      btn.style.display = 'block';
     });
   </script>
 </body>
