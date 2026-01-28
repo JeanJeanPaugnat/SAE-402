@@ -152,13 +152,30 @@
       setupButton: function () {
         const self = this;
         this.startBtn.addEventListener('click', async () => {
-          // Utilisation du binding WebXR standard d'A-Frame
-          // On appelle enterVR() qui utilise la config de la scène
           try {
-            await self.el.sceneEl.enterVR();
+            if (!navigator.xr) throw new Error('WebXR non supporté');
+            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+            if (!arSupported) throw new Error('Mode AR non supporté');
+
+            console.log('Démarrage session AR manuel...');
+
+            // Configuration de la session manuelle pour être sûr d'avoir toutes les features
+            const session = await navigator.xr.requestSession('immersive-ar', {
+              requiredFeatures: ['local-floor', 'hit-test'],
+              optionalFeatures: ['anchors', 'hand-tracking', 'plane-detection', 'mesh-detection', 'dom-overlay'],
+              domOverlay: { root: document.querySelector('#info') || document.body }
+            });
+
+            // Appliquer la session au renderer Three.js / A-Frame
+            self.el.sceneEl.renderer.xr.setSession(session);
+
+            // Force le mode AR dans A-Frame pour déclencher les events enter-vr
+            // Note: setSession déclenche généralement déjà cela via le renderer, 
+            // mais on s'assure que tout est sync.
+
           } catch (e) {
-            console.error("Erreur enterVR:", e);
-            alert("Erreur WebXR:" + e.message);
+            console.error("Erreur start AR:", e);
+            alert("Erreur démarrage AR: " + e.message);
           }
         });
       }
