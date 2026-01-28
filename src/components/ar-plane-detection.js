@@ -7,7 +7,7 @@
 AFRAME.registerComponent('ar-plane-detection', {
   schema: {
     visualizePlanes: { type: 'boolean', default: true }, // Afficher les plans détectés
-    autoCapture: { type: 'boolean', default: false }, // Lancer auto la capture si aucun plan
+    autoCapture: { type: 'boolean', default: false }, // RESTEZ SUR FALSE : Utilise la config existante
     waitTime: { type: 'number', default: 3000 } // Temps d'attente avant autoCapture (ms)
   },
 
@@ -26,7 +26,7 @@ AFRAME.registerComponent('ar-plane-detection', {
 
   onEnterVR: function () {
     const session = this.el.sceneEl.renderer.xr.getSession();
-    
+
     if (!session) return;
 
     this.xrSession = session;
@@ -53,7 +53,7 @@ AFRAME.registerComponent('ar-plane-detection', {
     this.planes.clear();
     this.xrSession = null;
     this.captureInitiated = false;
-    
+
     console.log('👋 Session AR terminée');
   },
 
@@ -81,7 +81,7 @@ AFRAME.registerComponent('ar-plane-detection', {
     // Vérifier si la fonction existe
     if (typeof this.xrSession.initiateRoomCapture === 'function') {
       this.captureInitiated = true;
-      
+
       this.xrSession.initiateRoomCapture()
         .then(() => {
           console.log('🎉 Configuration de l\'espace lancée avec succès !');
@@ -147,10 +147,10 @@ AFRAME.registerComponent('ar-plane-detection', {
 
     // Créer une entité pour représenter le plan
     const entity = document.createElement('a-entity');
-    
+
     // Créer un mesh pour le polygone du plan
     const geometry = this.createPlaneGeometry(plane.polygon);
-    
+
     // Couleur différente selon l'orientation du plan
     const isHorizontal = this.isPlaneHorizontal(plane);
     const color = isHorizontal ? '#4CC3D9' : '#FFC65D'; // Bleu pour horizontal, orange pour vertical
@@ -161,7 +161,7 @@ AFRAME.registerComponent('ar-plane-detection', {
       width: 1,
       height: 1
     });
-    
+
     entity.setAttribute('material', {
       color: color,
       opacity: opacity,
@@ -213,7 +213,7 @@ AFRAME.registerComponent('ar-plane-detection', {
     // Un plan horizontal a une normale proche de [0, 1, 0] ou [0, -1, 0]
     if (plane.orientation === 'horizontal') return true;
     if (plane.orientation === 'vertical') return false;
-    
+
     // Fallback: essayer de deviner depuis le polygone
     return true; // Par défaut
   },
@@ -310,7 +310,7 @@ AFRAME.registerComponent('ar-plane-detection', {
     if (debugEl) {
       debugEl.textContent = 'Debug: ' + message;
     }
-    
+
     // Aussi dans le casque si disponible
     const debugTextVR = document.querySelector('#debug-text');
     if (debugTextVR) {
