@@ -100,7 +100,7 @@
   <!-- IMPORTANT: Disable autoCapture to use existing room setup -->
   <!-- Add plane-detection, mesh-detection to optionalFeatures -->
   <a-scene
-    webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking, plane-detection, mesh-detection; referenceSpaceType: local-floor;"
+    webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking, plane-detection, mesh-detection, dom-overlay; overlayElement: #info; referenceSpaceType: local-floor;"
     vr-mode-ui="enabled: false"
     renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true"
     background="color: transparent" physics="driver: local; gravity: -9.8; debug: false" ar-session-manager
@@ -118,6 +118,9 @@
 
     <!-- ============ CAMÉRA ============ -->
     <a-camera position="0 1.6 0">
+      <!-- TENTATIVE DE DEBUG VISUEL: Cube rouge qui tourne -->
+      <a-box position="0 0 -1" scale="0.05 0.05 0.05" color="red"
+        animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
     </a-camera>
 
     <!-- ============ CONTROLEURS ============ -->
@@ -150,31 +153,18 @@
       setupButton: function () {
         const self = this;
         this.startBtn.addEventListener('click', async () => {
+          console.log("Tentative d'entrée en VR/AR via A-Frame...");
+          // Utilisation standard A-Frame qui gère tout (overlay, session, boucle de rendu)
+          // La config est dans <a-scene webxr="...">
           try {
-            if (!navigator.xr) throw new Error('WebXR non supporté');
-            const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
-            if (!arSupported) throw new Error('Mode AR non supporté');
-
-            console.log('Démarrage session AR manuel...');
-
-            // Configuration de la session manuelle
-            // 'optionalFeatures' ne doit pas inclure 'bounded-floor' si on veut éviter le guardian strict
-            const session = await navigator.xr.requestSession('immersive-ar', {
-              requiredFeatures: ['local-floor', 'hit-test', 'plane-detection'],
-              optionalFeatures: ['anchors', 'hand-tracking', 'mesh-detection', 'dom-overlay'],
-              domOverlay: { root: document.querySelector('#info') || document.body }
-            });
-
-            // Appliquer la session au renderer Three.js / A-Frame
-            self.el.sceneEl.renderer.xr.setSession(session);
-
-            // Log UI
-            const debugEl = document.querySelector('#debug');
-            if (debugEl) debugEl.textContent = "État: Scanner votre pièce...";
-
+            if (navigator.xr && await navigator.xr.isSessionSupported('immersive-ar')) {
+              await self.el.sceneEl.enterVR();
+            } else {
+              alert("AR non supporté sur cet appareil.");
+            }
           } catch (e) {
-            console.error("Erreur start AR:", e);
-            alert("Erreur démarrage AR: " + e.message);
+            console.error("Erreur enterVR:", e);
+            alert("Erreur: " + e.message);
           }
         });
       }
