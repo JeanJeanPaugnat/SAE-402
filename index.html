@@ -118,8 +118,6 @@
 
     <!-- ============ CAMÉRA ============ -->
     <a-camera position="0 1.6 0">
-      <a-text id="vr-debug-text" value="Prêt" position="0 0.35 -1" scale="0.4 0.4 0.4" color="#00FF00" align="center"
-        material="shader: flat"></a-text>
     </a-camera>
 
     <!-- ============ CONTROLEURS ============ -->
@@ -159,19 +157,20 @@
 
             console.log('Démarrage session AR manuel...');
 
-            // Configuration de la session manuelle pour être sûr d'avoir toutes les features
+            // Configuration de la session manuelle
+            // 'optionalFeatures' ne doit pas inclure 'bounded-floor' si on veut éviter le guardian strict
             const session = await navigator.xr.requestSession('immersive-ar', {
-              requiredFeatures: ['local-floor', 'hit-test'],
-              optionalFeatures: ['anchors', 'hand-tracking', 'plane-detection', 'mesh-detection', 'dom-overlay'],
+              requiredFeatures: ['local-floor', 'hit-test', 'plane-detection'],
+              optionalFeatures: ['anchors', 'hand-tracking', 'mesh-detection', 'dom-overlay'],
               domOverlay: { root: document.querySelector('#info') || document.body }
             });
 
             // Appliquer la session au renderer Three.js / A-Frame
             self.el.sceneEl.renderer.xr.setSession(session);
 
-            // Force le mode AR dans A-Frame pour déclencher les events enter-vr
-            // Note: setSession déclenche généralement déjà cela via le renderer, 
-            // mais on s'assure que tout est sync.
+            // Log UI
+            const debugEl = document.querySelector('#debug');
+            if (debugEl) debugEl.textContent = "État: Scanner votre pièce...";
 
           } catch (e) {
             console.error("Erreur start AR:", e);

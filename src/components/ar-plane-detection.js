@@ -136,6 +136,46 @@ AFRAME.registerComponent('ar-plane-detection', {
     this.updatePlaneCount();
   },
 
+  updatePlaneCount: function () {
+    const count = this.xrSession && this.xrSession.detectedPlanes ? this.xrSession.detectedPlanes.size : 0;
+
+    // Mettre à jour debug
+    const debugEl = document.querySelector('#debug');
+    if (debugEl) {
+      if (count > 0) {
+        debugEl.textContent = `État: ${count} plans détectés (Room Setup OK)`;
+        debugEl.style.color = '#00FF00';
+      } else {
+        debugEl.textContent = 'État: Recherche de l\'espace... (Regardez autour)';
+        debugEl.style.color = '#FFD700';
+      }
+    }
+
+    // Msg spécifique pour les plans
+    const countEl = document.querySelector('#planes-count');
+    if (countEl) countEl.textContent = `Plans: ${count}`;
+  },
+
+  updatePlaneCount: function () {
+    const count = this.xrSession && this.xrSession.detectedPlanes ? this.xrSession.detectedPlanes.size : 0;
+
+    // Mettre à jour debug
+    const debugEl = document.querySelector('#debug');
+    if (debugEl) {
+      if (count > 0) {
+        debugEl.textContent = `État: ${count} plans détectés (Room Setup OK)`;
+        debugEl.style.color = '#00FF00';
+      } else {
+        debugEl.textContent = 'État: Recherche de l\'espace... (Regardez autour)';
+        debugEl.style.color = '#FFD700';
+      }
+    }
+
+    // Msg spécifique pour les plans
+    const countEl = document.querySelector('#planes-count');
+    // Note: on utilise #debug principalement maintenant
+  },
+
   /**
    * Créer une visualisation pour un plan détecté
    */
