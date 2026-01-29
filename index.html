@@ -4,62 +4,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SAE 402 - Coffee Quest AR</title>
+  <title>SAE 402 - AR Grab</title>
 </head>
 
 <body>
-  <div id="app"></div>
-
-  <!-- UI Overlay -->
-  <div id="info"
-    style="position: absolute; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px;">
-    <h1>☕ Coffee Quest - Meshing Mode</h1>
-    <p>Regardez autour pour scanner la pièce.</p>
-    <p>Les surfaces détectées apparaîtront en fil de fer vert.</p>
-    <button id="enter-ar"
-      style="padding: 10px 20px; font-size: 1.2rem; background: #0cebeb; border: none; border-radius: 5px; cursor: pointer;">
-      Démarrer AR (Mesh)
-    </button>
+  <!-- Overlay UI -->
+  <div id="overlay"
+    style="position: fixed; top: 10px; left: 10px; z-index: 999; background: rgba(0,0,0,0.7); color: white; padding: 15px; font-family: sans-serif; border-radius: 8px;">
+    <h2 style="margin: 0 0 10px 0;">☕ SAE 402 - AR Grab</h2>
+    <p id="debug-log" style="color: yellow; margin: 5px 0;">En attente...</p>
+    <button id="start-btn" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">Lancer AR</button>
   </div>
 
-  <!-- Scene -->
-  <a-scene embedded webxr="requiredFeatures: local-floor; optionalFeatures: mesh-detection; overlayElement: #info;"
-    renderer="colorManagement: true; physicallyCorrectLights: true;"
-    ar-meshing="enabled: true; visualize: true; color: #0cebeb" physics="debug: false; gravity: -9.8">
+  <!-- A-Frame Scene -->
+  <a-scene ar-session="grabDistance: 0.5; throwMultiplier: 1" renderer="alpha: true; antialias: true"
+    background="color: transparent" vr-mode-ui="enabled: false" physics="debug: false; gravity: -9.8">
 
-    <!-- Initial Light -->
-    <a-light type="directional" position="1 2 1" intensity="1"></a-light>
-    <a-light type="ambient" intensity="0.5"></a-light>
+    <!-- Lighting -->
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
 
-    <!-- Camera -->
-    <a-entity id="rig" position="0 0 0">
-      <a-camera position="0 1.6 0" look-controls="magicWindowTrackingEnabled: false"></a-camera>
-      <a-entity oculus-touch-controls="hand: left"></a-entity>
-      <a-entity oculus-touch-controls="hand: right"></a-entity>
+    <!-- Camera Rig -->
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0"></a-camera>
     </a-entity>
+
+    <!-- Grabbable Cube -->
+    <a-box id="the-cube" position="0 0.1 -1" scale="0.15 0.15 0.15" color="#8A2BE2"
+      dynamic-body="mass: 0.5; linearDamping: 0.3; angularDamping: 0.3" shadow>
+    </a-box>
+
+    <!-- Invisible Floor -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" visible="false" static-body>
+    </a-plane>
 
   </a-scene>
 
+  <!-- Main Script -->
   <script type="module" src="/src/main.js"></script>
-
-  <script>
-    const btn = document.getElementById('enter-ar');
-    const scene = document.querySelector('a-scene');
-
-    btn.addEventListener('click', () => {
-      scene.enterVR();
-    });
-
-    scene.addEventListener('enter-vr', () => {
-      btn.textContent = 'Scanner en cours...';
-      btn.style.display = 'none';
-    });
-
-    scene.addEventListener('exit-vr', () => {
-      btn.textContent = 'Démarrer AR (Mesh)';
-      btn.style.display = 'block';
-    });
-  </script>
 </body>
 
 </html>

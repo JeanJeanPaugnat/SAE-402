@@ -1,11 +1,10 @@
 import 'aframe';
 import 'aframe-extras';
 import 'aframe-physics-system';
-import 'aframe-environment-component';
-import 'aframe-state-component';
 import './style.css';
 
-// Components
-import './components/ar-meshing.js';
+// Composants AR
+import './components/ar-session.js';
+import './components/force-transparent.js';
 
-console.log('☕ Coffee Quest AR - App Initialized');
+console.log('☕ SAE 402 - Application initialisée');
