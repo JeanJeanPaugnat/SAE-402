@@ -52,105 +52,26 @@
        - background : Transparent pour voir la camera
        ============================================ -->
   
-  <a-scene
-    webxr="requiredFeatures: local-floor, hit-test;
-           optionalFeatures: anchors;
-           referenceSpaceType: local-floor;"
-    vr-mode-ui="enabled: false"
-    renderer="colorManagement: true; alpha: true; antialias: true"
-    background="color: transparent"
-    ar-hit-test="#reticle">
-    
-    <!-- ============================================
-         ASSETS (Modeles 3D, sons, textures)
-         ============================================
-         
-         On declare ici tous les fichiers a precharger.
-         Ensuite on les utilise avec #id-de-l-asset
-         ============================================ -->
-    
-    <a-assets>
-      <!-- Modele de tasse de cafe -->
-      <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
-      
-      <!-- Modele de machine a cafe (pour plus tard) -->
-      <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
+  <a-scene 
+  background="color: #333" 
+  renderer="colorManagement: true;">
+
+  <a-assets>
+    <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
+    <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
     </a-assets>
 
-    <!-- ============================================
-         ECLAIRAGE
-         ============================================
-         
-         - ambient : Lumiere uniforme partout
-         - directional : Comme le soleil, avec ombres
-         ============================================ -->
-    
-    <a-light type="ambient" intensity="0.6"></a-light>
-    <a-light type="directional" 
-             position="1 2 1" 
-             intensity="0.8" 
-             cast-shadow="true">
-    </a-light>
+  <a-box position="0 0.5 -1" width="3" height="0.1" depth="1.2" color="#8B4513"></a-box> 
+  
+  <a-entity gltf-model="#coffee-machine-model" position="-0.5 0.95 -1" rotation="0 180 0" scale="0.6 0.6 0.6"></a-entity>
+  <a-entity gltf-model="#coffee-cup-model" position="0.2 0.85 -0.9" rotation="0 180 0" scale="0.5 0.5 0.5"></a-entity>
 
-    <!-- ============================================
-         CAMERA
-         ============================================
-         
-         En AR, la camera est controlee par le casque.
-         On met juste la position de depart.
-         ============================================ -->
-    
-    <a-camera position="0 1.6 0"></a-camera>
+  <a-light type="ambient" intensity="1"></a-light>
+  <a-light type="directional" position="1 2 1"></a-light>
+  
+  <a-camera position="0 1.6 0.5" look-controls wasd-controls></a-camera>
 
-    <!-- ============================================
-         RETICULE (Curseur de placement)
-         ============================================
-         
-         Ce cercle apparait sur les surfaces detectees.
-         Il est deplace par le composant ar-hit-test.
-         ============================================ -->
-    
-    <a-entity id="reticle" visible="false">
-      <!-- Cercle externe (vert) -->
-      <a-ring color="#00FF00"
-              radius-inner="0.08"
-              radius-outer="0.12"
-              rotation="-90 0 0"
-              material="shader: flat; opacity: 0.9">
-      </a-ring>
-      
-      <!-- Cercle interne (jaune) -->
-      <a-ring color="#FFFF00"
-              radius-inner="0.03"
-              radius-outer="0.05"
-              rotation="-90 0 0"
-              material="shader: flat">
-      </a-ring>
-    </a-entity>
-
-    <!-- ============================================
-         MANETTES OCULUS QUEST
-         ============================================
-         
-         - oculus-touch-controls : Detecte la manette
-         - controller-grab : Permet d'attraper (GRIP)
-         - cup-spawner : Permet de creer des tasses (A + TRIGGER)
-         ============================================ -->
-    
-    <!-- Manette gauche -->
-    <a-entity id="left-controller"
-              oculus-touch-controls="hand: left"
-              controller-grab="hand: left">
-    </a-entity>
-    
-    <!-- Manette droite (avec cup-spawner) -->
-    <a-entity id="right-controller"
-              oculus-touch-controls="hand: right"
-              controller-grab="hand: right"
-              cup-spawner>
-    </a-entity>
-
-  </a-scene>
+</a-scene>
 
   <!-- ============================================
        SCRIPTS
