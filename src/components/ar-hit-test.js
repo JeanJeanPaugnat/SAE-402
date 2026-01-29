@@ -1,130 +1,169 @@
-/* * Composant : ar-hit-test
- * Description : Gère la détection de surface (Hit Test) et le placement d'objets en AR.
- * Auteur : Ton Nom / Prof Helper
+/**
+ * ============================================
+ * Composant : ar-hit-test
+ * ============================================
+ * 
+ * RÔLE : Détecte les surfaces réelles (sol, table) avec WebXR Hit-Test.
+ *        Affiche un curseur (réticule) là où le rayon touche une surface.
+ * 
+ * UTILISATION dans le HTML :
+ *   <a-entity ar-hit-test="#reticle"></a-entity>
+ *   <a-entity id="reticle" visible="false">...</a-entity>
+ * 
+ * COMMENT ÇA MARCHE :
+ *   1. WebXR envoie un rayon invisible depuis ta tête (ou manette)
+ *   2. Si le rayon touche une surface réelle, on récupère la position
+ *   3. On déplace le réticule à cette position
+ *   4. Quand tu appuies sur le trigger, on émet un événement "ar-hit-confirmed"
  */
 
 AFRAME.registerComponent('ar-hit-test', {
   schema: {
-    target: { type: 'selector' }, // L'objet à faire apparaître (ex: #coffee-machine)
-    enabled: { type: 'boolean', default: true } // Pour activer/désactiver le scan
+    // Le réticule à déplacer (curseur visuel)
+    reticle: { type: 'selector', default: '#reticle' }
   },
 
   init: function () {
-    // Variables pour stocker les références WebXR
-    this.xrHitTestSource = null;
-    this.viewerSpace = null;
-    this.refSpace = null;
-
-    // Masquer le curseur (l'anneau) au début tant qu'on n'a pas détecté de surface
-    this.el.setAttribute('visible', false);
-
-    // Écouter le démarrage de la session AR (quand tu cliques sur "Enter AR")
-    this.el.sceneEl.renderer.xr.addEventListener('sessionstart', (ev) => {
-      this.viewerSpace = null;
-      this.refSpace = null;
-      this.xrHitTestSource = null;
-    });
-
-    // Écouter le clic (Gâchette manette ou Tap sur l'écran)
-    this.el.sceneEl.addEventListener('click', () => {
-      this.placeObject();
-    });
+    // Variables WebXR
+    this.hitTestSource = null;
+    this.hitTestSourceRequested = false;
+    this.lastHitPosition = null;
+    this.lastHitRotation = null;
+    
+    // Référence au debug DOM
+    this.debugEl = document.querySelector('#debug-status');
+    
+    // Écouter les événements de session XR
+    this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR.bind(this));
+    this.el.sceneEl.addEventListener('exit-vr', this.onExitVR.bind(this));
+    
+    this.updateDebug('Composant ar-hit-test prêt');
   },
 
-  tick: function () {
-    // Si le composant est désactivé, on ne fait rien
-    if (!this.data.enabled) return;
+  /**
+   * Met à jour le debug dans le DOM (pas la console)
+   */
+  updateDebug: function (message) {
+    if (this.debugEl) {
+      this.debugEl.textContent = message;
+    }
+  },
 
-    const frame = this.el.sceneEl.frame;
-    const xrSession = this.el.sceneEl.renderer.xr.getSession();
-    const xrViewerBase = this.el.sceneEl.renderer.xr.getReferenceSpace();
-
-    // Vérification de sécurité : sommes-nous bien en mode XR ?
-    if (!xrSession || !frame || !xrViewerBase) return;
-
-    // 1. Initialisation de la source de Hit Test (une seule fois)
-    if (!this.xrHitTestSource && !this.requestingHitTest) {
+  /**
+   * Appelé quand on entre en mode VR/AR
+   */
+  onEnterVR: function () {
+    this.updateDebug('Session AR démarrée...');
+    
+    // Attendre que la session soit prête
+    setTimeout(() => {
       this.requestHitTestSource();
+    }, 500);
+  },
+
+  /**
+   * Appelé quand on sort du mode VR/AR
+   */
+  onExitVR: function () {
+    // Nettoyer la source de hit-test
+    if (this.hitTestSource) {
+      this.hitTestSource.cancel();
+      this.hitTestSource = null;
+    }
+    this.hitTestSourceRequested = false;
+    this.updateDebug('Session AR terminée');
+  },
+
+  /**
+   * Demande la création d'une source de hit-test
+   * C'est le "rayon" qui va détecter les surfaces
+   */
+  requestHitTestSource: function () {
+    if (this.hitTestSourceRequested) return;
+    this.hitTestSourceRequested = true;
+    
+    const session = this.el.sceneEl.renderer.xr.getSession();
+    if (!session) {
+      this.updateDebug('Erreur: pas de session XR');
       return;
     }
 
-    // 2. Récupérer les résultats du test de collision pour cette frame
-    if (this.xrHitTestSource) {
-      const hitTestResults = frame.getHitTestResults(this.xrHitTestSource);
-
-      if (hitTestResults.length > 0) {
-        // BINGO ! On a touché une surface réelle (sol ou table)
-        const hit = hitTestResults[0];
-        const pose = hit.getPose(xrViewerBase);
-
-        if (pose) {
-          // On rend le curseur visible
-          this.el.setAttribute('visible', true);
-
-          // On déplace le curseur à la position détectée
-          this.el.object3D.position.copy(pose.transform.position);
-          this.el.object3D.quaternion.copy(pose.transform.orientation);
-        }
-        
-      } else {
-        // Pas de surface détectée (on regarde le plafond ou le vide)
-        this.el.setAttribute('visible', false);
-      }
-    }
-  },
-
-  requestHitTestSource: function () {
-    this.requestingHitTest = true;
-    const session = this.el.sceneEl.renderer.xr.getSession();
-
-    console.log("🎯 Demande de Hit Test Source...");
-
-    // Demander au WebXR de créer un rayon de détection
-    session.requestReferenceSpace('viewer').then((refSpace) => {
-      this.viewerSpace = refSpace;
-      session.requestHitTestSource({ space: this.viewerSpace })
-        .then((source) => {
-          this.xrHitTestSource = source;
-          this.requestingHitTest = false;
-          console.log("✅ Hit Test Source créé avec succès !");
-        })
-        .catch((err) => {
-          console.error("❌ Erreur Hit Test:", err);
-          this.requestingHitTest = false;
-        });
+    // Demander un espace "viewer" (depuis la tête)
+    session.requestReferenceSpace('viewer').then((viewerSpace) => {
+      // Créer la source de hit-test
+      session.requestHitTestSource({ space: viewerSpace }).then((source) => {
+        this.hitTestSource = source;
+        this.updateDebug('Hit-Test actif ✓');
+      }).catch((err) => {
+        this.updateDebug('Erreur hit-test: ' + err.message);
+      });
     }).catch((err) => {
-      console.error("❌ Erreur Reference Space:", err);
-      this.requestingHitTest = false;
+      this.updateDebug('Erreur viewer space: ' + err.message);
     });
   },
 
-  placeObject: function () {
-    // Si le curseur n'est pas visible, on ne peut rien poser
-    if (!this.el.getAttribute('visible')) return;
+  /**
+   * Appelé à chaque frame (60 fois par seconde)
+   * C'est ici qu'on récupère les résultats du hit-test
+   */
+  tick: function () {
+    // Vérifier qu'on est bien en session XR
+    const frame = this.el.sceneEl.frame;
+    const session = this.el.sceneEl.renderer.xr.getSession();
+    const refSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+    
+    if (!frame || !session || !refSpace || !this.hitTestSource) return;
 
-    // Si on n'a pas défini d'objet cible dans le HTML, erreur
-    if (!this.data.target) {
-      console.error("Aucun objet cible défini ! Ajoutez target: #id-objet");
-      return;
+    // Récupérer les résultats du hit-test pour cette frame
+    const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+
+    if (hitTestResults.length > 0) {
+      // ON A TOUCHÉ UNE SURFACE !
+      const hit = hitTestResults[0];
+      const pose = hit.getPose(refSpace);
+
+      if (pose && this.data.reticle) {
+        // Sauvegarder la position/rotation pour plus tard
+        this.lastHitPosition = pose.transform.position;
+        this.lastHitRotation = pose.transform.orientation;
+        
+        // Déplacer le réticule
+        this.data.reticle.object3D.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        );
+        this.data.reticle.object3D.quaternion.set(
+          pose.transform.orientation.x,
+          pose.transform.orientation.y,
+          pose.transform.orientation.z,
+          pose.transform.orientation.w
+        );
+        
+        // Rendre le réticule visible
+        this.data.reticle.setAttribute('visible', true);
+      }
+    } else {
+      // Pas de surface détectée - cacher le réticule
+      if (this.data.reticle) {
+        this.data.reticle.setAttribute('visible', false);
+      }
+      this.lastHitPosition = null;
     }
+  },
 
-    // --- LOGIQUE DE SPAWN ---
-    
-    // 1. On rend l'objet cible visible (si c'était la machine cachée)
-    // OU on le clone si on veut poser plusieurs objets (optionnel)
-    const targetEntity = this.data.target;
-    
-    // On copie la position et la rotation du curseur vers l'objet
-    targetEntity.object3D.position.copy(this.el.object3D.position);
-    targetEntity.object3D.quaternion.copy(this.el.object3D.quaternion);
-    
-    // On affiche l'objet
-    targetEntity.setAttribute('visible', true);
+  /**
+   * Méthode publique pour récupérer la dernière position détectée
+   * Utilisée par d'autres composants (ex: cup-spawner)
+   */
+  getHitPosition: function () {
+    return this.lastHitPosition;
+  },
 
-    // Optionnel : Désactiver le scan après avoir posé l'objet (pour figer le setup)
-    // this.data.enabled = false; 
-    // this.el.setAttribute('visible', false);
-    
-    console.log("Objet placé avec succès !");
+  /**
+   * Vérifie si une surface est actuellement détectée
+   */
+  hasHit: function () {
+    return this.lastHitPosition !== null;
   }
 });
