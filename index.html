@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>☕ Coffee Cup AR - Simplifié</title>
+    <title>☕ Coffee Cup AR - SAE 402</title>
     <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
     <!-- Physics system avec CANNON.js -->
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+    <!-- Composants hand-grab pour saisir les objets -->
+    <script src="./src/components/hand-grab.js"></script>
     <style>
       body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
       
@@ -26,7 +28,6 @@
       #info h2 { margin: 0 0 10px 0; font-size: 18px; }
       #info p { margin: 5px 0; font-size: 14px; }
       #count { color: #4CC3D9; font-weight: bold; }
-      #planes-count { color: #00FF00; }
       #debug { font-size: 12px; color: #FFD700; margin-top: 10px; font-family: monospace; }
       
       #start-ar-btn {
@@ -53,14 +54,11 @@
     </style>
   </head>
   <body>
-    <!-- Interface HTML -->
+    <!-- Interface HTML visible sur l'écran -->
     <div id="info">
       <h2>☕ Coffee Cup AR</h2>
-      <p><strong>Bouton A</strong> = Spawn tasse en main</p>
-      <p><strong>Trigger</strong> = Lâcher la tasse</p>
-      <hr>
-      <p id="count">Tasses: 0</p>
-      <p id="planes-count">Plans détectés: 0</p>
+      <p>Placez des tasses de café dans votre espace !</p>
+      <p id="count">Tasses placées: 0</p>
       <p id="debug">État: Prêt</p>
     </div>
 
@@ -68,25 +66,35 @@
 
     <!-- Scène A-Frame -->
     <a-scene 
-      webxr="requiredFeatures: local-floor; optionalFeatures: plane-detection, anchors; referenceSpaceType: local-floor;"
+      webxr="requiredFeatures: local-floor, hit-test; optionalFeatures: anchors, hand-tracking, plane-detection, mesh-detection; referenceSpaceType: local-floor;"
       vr-mode-ui="enabled: false"
-      renderer="colorManagement: true; alpha: true; antialias: true"
+      renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true; antialias: true"
       background="color: transparent"
       physics="driver: local; gravity: -9.8; debug: false"
-      ar-session-manager
+      ar-coffee-placer
       ar-plane-detector="showPlanes: true">
       
       <!-- ============ ASSETS ============ -->
       <a-assets>
-        <a-asset-item id="coffee-cup-model" src="./public/models/Coffee cup.glb"></a-asset-item>
+        <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
+        <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
       </a-assets>
 
       <!-- ============ ÉCLAIRAGE ============ -->
-      <a-light type="ambient" intensity="0.8"></a-light>
-      <a-light type="directional" position="1 2 1" intensity="0.7"></a-light>
+      <a-light type="ambient" intensity="0.7"></a-light>
+      <a-light type="directional" position="1 2 1" intensity="0.9" cast-shadow="true"></a-light>
 
       <!-- ============ CAMÉRA ============ -->
       <a-camera position="0 1.6 0">
+        <!-- Réticule au centre de la vue (visible dans le casque) -->
+        <a-ring id="center-reticle" 
+                position="0 0 -1.5" 
+                radius-inner="0.015" 
+                radius-outer="0.025" 
+                color="#00FF00"
+                material="shader: flat; opacity: 0.8">
+        </a-ring>
+        
         <!-- Texte de debug visible dans le casque -->
         <a-text id="vr-debug-text" 
                 value="Prêt" 
@@ -98,128 +106,152 @@
         </a-text>
       </a-camera>
 
-      <!-- ============ MANETTES ============ -->
+      <!-- ============ MAINS POUR HAND TRACKING ============ -->
+      <!-- Main gauche -->
+      <a-entity id="left-hand"
+                hand-tracking-controls="hand: left; modelStyle: mesh; modelColor: #4CC3D9"
+                hand-grab="hand: left">
+        <!-- Sphère de visualisation de la zone de grab -->
+        <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
+      </a-entity>
+      
+      <!-- Main droite -->
+      <a-entity id="right-hand"
+                hand-tracking-controls="hand: right; modelStyle: mesh; modelColor: #4CC3D9"
+                hand-grab="hand: right">
+        <!-- Sphère de visualisation de la zone de grab -->
+        <a-sphere radius="0.02" color="#4CC3D9" material="opacity: 0.3; transparent: true"></a-sphere>
+      </a-entity>
+
+      <!-- ============ MANETTES (fallback) ============ -->
       <a-entity id="left-controller"
-                oculus-touch-controls="hand: left">
+                oculus-touch-controls="hand: left"
+                controller-grab="hand: left">
       </a-entity>
       
       <a-entity id="right-controller"
                 oculus-touch-controls="hand: right"
+                controller-grab="hand: right"
                 cup-spawner>
+      </a-entity>
+      
+      <!-- ============ CURSEUR DE PLACEMENT ============ -->
+      <a-entity id="placement-cursor" visible="false">
+        <!-- Cercle externe -->
+        <a-ring color="#00FF00" 
+                radius-inner="0.08" 
+                radius-outer="0.12" 
+                rotation="-90 0 0"
+                material="shader: flat; opacity: 0.9">
+        </a-ring>
+        <!-- Cercle interne -->
+        <a-ring color="#FFFF00" 
+                radius-inner="0.03" 
+                radius-outer="0.05" 
+                rotation="-90 0 0"
+                material="shader: flat">
+        </a-ring>
+        <!-- Flèche vers le haut -->
+        <a-cone color="#00FF00" 
+                height="0.12" 
+                radius-bottom="0.03" 
+                radius-top="0" 
+                position="0 0.06 0"
+                material="shader: flat">
+        </a-cone>
+      </a-entity>
+
+      <!-- ============ SOL INVISIBLE POUR PHYSIQUE ============ -->
+      <!-- Ce plan sera repositionné dynamiquement à la hauteur du sol détecté -->
+      <a-plane id="physics-floor"
+               position="0 0 0"
+               rotation="-90 0 0"
+               width="50"
+               height="50"
+               visible="false"
+               static-body>
+      </a-plane>
+      </a-entity>
+
+      <!-- ============ PRÉVISUALISATION DE LA TASSE ============ -->
+      <a-entity id="cup-preview" visible="false">
+        <a-entity gltf-model="#coffee-cup-model" 
+                  scale="0.1 0.1 0.1"
+                  material="opacity: 0.5; transparent: true">
+        </a-entity>
       </a-entity>
 
     </a-scene>
 
+    <!-- ============ COMPOSANT CUP SPAWNER ============ -->
     <script>
       /**
-       * =================================================================
-       * Composant : ar-session-manager
-       * Description : Gère le démarrage de la session AR
-       * =================================================================
-       */
-      AFRAME.registerComponent('ar-session-manager', {
-        init: function () {
-          this.startBtn = document.querySelector('#start-ar-btn');
-          this.debugEl = document.querySelector('#debug');
-          this.debugVREl = document.querySelector('#vr-debug-text');
-          this.sessionActive = false;
-          
-          this.setupButton();
-          
-          this.el.sceneEl.addEventListener('enter-vr', () => {
-            this.sessionActive = true;
-            this.log('Session AR active');
-            this.startBtn.style.display = 'none';
-          });
-          
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.sessionActive = false;
-            this.log('Session AR terminée');
-            this.startBtn.style.display = 'block';
-          });
-        },
-        
-        log: function (msg) {
-          console.log('[AR]', msg);
-          if (this.debugEl) this.debugEl.textContent = 'État: ' + msg;
-          if (this.debugVREl) this.debugVREl.setAttribute('value', msg);
-        },
-        
-        setupButton: function () {
-          const self = this;
-          
-          this.startBtn.addEventListener('click', async () => {
-            try {
-              if (!navigator.xr) throw new Error('WebXR non supporté');
-              
-              const supported = await navigator.xr.isSessionSupported('immersive-ar');
-              if (!supported) throw new Error('AR non supporté');
-              
-              self.log('Démarrage AR...');
-              
-              const session = await navigator.xr.requestSession('immersive-ar', {
-                requiredFeatures: ['local-floor'],
-                optionalFeatures: ['plane-detection', 'anchors', 'dom-overlay'],
-                domOverlay: { root: document.querySelector('#info') }
-              });
-              
-              self.el.sceneEl.renderer.xr.setSession(session);
-              self.startBtn.style.display = 'none';
-              
-            } catch (err) {
-              self.log('Erreur: ' + err.message);
-              alert('Erreur: ' + err.message);
-            }
-          });
-        }
-      });
-
-      /**
-       * =================================================================
        * Composant : cup-spawner
-       * Description : Spawn une tasse avec Bouton A, la lâche avec Trigger
-       * =================================================================
+       * Description : Permet de spawner une tasse dans la main avec le bouton A
+       *               et de la poser avec le trigger
+       * 
+       * Workflow:
+       * 1. Bouton A → spawn une tasse attachée à la manette
+       * 2. Trigger → détache la tasse et la pose au sol (hit-test)
+       * 3. Grip → grab une tasse déjà posée
        */
       AFRAME.registerComponent('cup-spawner', {
         schema: {
-          cupScale: { type: 'number', default: 0.1 }
+          cupScale: { type: 'number', default: 0.1 },
+          cupYOffset: { type: 'number', default: 0.05 }
         },
 
         init: function () {
-          this.heldCup = null;
+          this.heldCup = null;  // La tasse actuellement en main
           this.cupCount = 0;
-          this.allCups = [];
           
-          // Écouter les boutons
+          // Écouter le bouton A (abuttondown sur Oculus Touch)
           this.el.addEventListener('abuttondown', this.onAButton.bind(this));
+          
+          // Écouter le trigger pour poser la tasse
           this.el.addEventListener('triggerdown', this.onTrigger.bind(this));
+          
+          // Obtenir la référence au ar-coffee-placer pour utiliser son hit-test
+          this.coffePlacer = null;
+          this.el.sceneEl.addEventListener('loaded', () => {
+            this.coffeePlacer = document.querySelector('[ar-coffee-placer]');
+            if (this.coffeePlacer) {
+              this.coffeePlacer = this.coffeePlacer.components['ar-coffee-placer'];
+            }
+          });
           
           console.log('☕ Cup-spawner initialisé');
         },
 
-        onAButton: function () {
+        onAButton: function (evt) {
+          // Si on a déjà une tasse en main, ne rien faire
           if (this.heldCup) {
-            this.log('Déjà une tasse en main !');
+            console.log('☕ Déjà une tasse en main !');
             return;
           }
+          
+          // Créer une nouvelle tasse attachée à la manette
           this.spawnCupInHand();
         },
 
         spawnCupInHand: function () {
-          const cup = document.createElement('a-entity');
-          cup.setAttribute('gltf-model', '#coffee-cup-model');
-          cup.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
-          cup.setAttribute('id', `cup-${Date.now()}`);
-          cup.setAttribute('position', '0 0.05 -0.05');
+          const cupEntity = document.createElement('a-entity');
+          cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
+          cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+          cupEntity.setAttribute('id', `held-cup-${Date.now()}`);
           
-          // Attacher à la manette
-          this.el.appendChild(cup);
-          this.heldCup = cup;
+          // Position relative à la manette (légèrement devant et en haut)
+          cupEntity.setAttribute('position', '0 0.05 -0.05');
+          
+          // Ajouter comme enfant de la manette (suit automatiquement)
+          this.el.appendChild(cupEntity);
+          
+          this.heldCup = cupEntity;
           this.cupCount++;
           
-          // Animation d'apparition
-          cup.addEventListener('model-loaded', () => {
-            cup.setAttribute('animation', {
+          // Effet visuel (couleur légèrement différente pour montrer qu'on la tient)
+          cupEntity.addEventListener('model-loaded', () => {
+            cupEntity.setAttribute('animation', {
               property: 'scale',
               from: '0 0 0',
               to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
@@ -228,191 +260,752 @@
             });
           });
           
-          this.log('Tasse en main ! Trigger = lâcher');
-          this.updateCount();
+          console.log(`☕ Tasse spawned en main ! (total: ${this.cupCount})`);
+          
+          // Mettre à jour le debug
+          if (this.coffeePlacer) {
+            this.coffeePlacer.log('Tasse en main - Trigger pour poser');
+          }
         },
 
-        onTrigger: function () {
-          if (!this.heldCup) return;
-          this.releaseCup();
+        onTrigger: function (evt) {
+          // Si pas de tasse en main, ne rien faire (laisse le grab fonctionner)
+          if (!this.heldCup) {
+            return;
+          }
+          
+          // Détacher et poser la tasse
+          this.placeCupFromHand();
         },
 
-        releaseCup: function () {
+        placeCupFromHand: function () {
           if (!this.heldCup) return;
           
-          // Récupérer position/rotation mondiale
+          // Obtenir la position mondiale actuelle de la tasse
           const worldPos = new THREE.Vector3();
-          const worldQuat = new THREE.Quaternion();
           this.heldCup.object3D.getWorldPosition(worldPos);
+          
+          const worldQuat = new THREE.Quaternion();
           this.heldCup.object3D.getWorldQuaternion(worldQuat);
           
           // Détacher de la manette
-          const cup = this.heldCup;
-          this.el.removeChild(cup);
+          const cupEl = this.heldCup;
+          this.el.removeChild(cupEl);
           
-          // Ajouter à la scène
-          this.el.sceneEl.appendChild(cup);
+          // Ajouter à la scène principale
+          this.el.sceneEl.appendChild(cupEl);
           
-          // Positionner dans le monde
-          cup.object3D.position.copy(worldPos);
-          cup.object3D.quaternion.copy(worldQuat);
+          // Positionner à la position mondiale
+          cupEl.object3D.position.copy(worldPos);
+          cupEl.object3D.quaternion.copy(worldQuat);
           
-          // Ajouter la physique après un court délai
+          // Ajouter grabbable et physique
+          cupEl.setAttribute('grabbable', '');
+          
+          // Ajouter la physique après le positionnement
           setTimeout(() => {
-            cup.setAttribute('dynamic-body', {
+            cupEl.setAttribute('dynamic-body', {
               mass: 0.3,
               shape: 'box',
               linearDamping: 0.3,
-              angularDamping: 0.5
+              angularDamping: 0.3
             });
             
-            this.log('Tasse lâchée !');
+            cupEl.setAttribute('physics-material', {
+              restitution: 0.4,
+              friction: 0.5
+            });
+            
+            // Figer temporairement pour pas qu'elle tombe immédiatement
+            setTimeout(() => {
+              if (cupEl.body) {
+                cupEl.body.velocity.set(0, 0, 0);
+                cupEl.body.angularVelocity.set(0, 0, 0);
+                
+                // Vérifier si on est au-dessus d'une surface (hit-test)
+                // Si oui, figer. Sinon, laisser tomber.
+                if (this.coffeePlacer && this.coffeePlacer.lastHitPose) {
+                  const hitY = this.coffeePlacer.lastHitPose.position.y;
+                  // Si la tasse est proche du sol détecté, la poser
+                  if (Math.abs(worldPos.y - hitY) < 0.3) {
+                    cupEl.body.sleep();
+                    console.log('☕ Tasse posée sur surface');
+                  } else {
+                    console.log('☕ Tasse lâchée en l\'air - elle tombe !');
+                  }
+                }
+              }
+            }, 100);
           }, 50);
           
-          this.allCups.push(cup);
           this.heldCup = null;
+          
+          // Mettre à jour le compteur
+          if (this.coffeePlacer) {
+            this.coffeePlacer.placedCups.push(cupEl);
+            this.coffeePlacer.updateCount();
+            this.coffeePlacer.log('Tasse posée ! Bouton A = nouvelle');
+          }
+          
+          console.log('☕ Tasse posée depuis la main');
         },
 
-        log: function (msg) {
-          console.log('☕', msg);
-          const debugEl = document.querySelector('#debug');
-          const debugVR = document.querySelector('#vr-debug-text');
-          if (debugEl) debugEl.textContent = 'État: ' + msg;
-          if (debugVR) debugVR.setAttribute('value', msg);
+        tick: function () {
+          // Rien à faire - la tasse suit automatiquement car enfant de la manette
+        }
+      });
+    </script>
+
+    <!-- ============ COMPOSANT AR COFFEE PLACER ============ -->
+    <script>
+      /**
+       * Composant : ar-coffee-placer
+       * Description : Permet de placer des tasses de café sur les surfaces réelles
+       * Utilise WebXR Hit-Test et Anchors API
+       */
+      AFRAME.registerComponent('ar-coffee-placer', {
+        schema: {
+          maxCups: { type: 'number', default: 20 },
+          cupScale: { type: 'number', default: 0.1 },
+          // Décalage vertical pour placer la tasse sur sa base (pas son centre)
+          // Si le modèle a son origine au centre et fait ~10cm de haut avec scale 0.1
+          // alors on doit décaler de la moitié de sa hauteur réelle
+          cupYOffset: { type: 'number', default: 0.05 }  // 5cm de décalage par défaut
+        },
+
+        init: function () {
+          // État du composant
+          this.placedCups = [];
+          this.xrSession = null;
+          this.xrRefSpace = null;
+          this.hitTestSource = null;
+          this.hitTestSourceRequested = false;
+          this.lastHitPose = null;
+          this.sessionInitialized = false;
+          
+          // Éléments DOM
+          this.cursorEl = document.querySelector('#placement-cursor');
+          this.previewEl = document.querySelector('#cup-preview');
+          this.debugTextEl = document.querySelector('#vr-debug-text');
+          this.debugHtmlEl = document.querySelector('#debug');
+          this.countEl = document.querySelector('#count');
+          this.startBtn = document.querySelector('#start-ar-btn');
+          
+          // Configurer le bouton AR
+          this.setupARButton();
+          
+          // Écouter les événements de session
+          this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR.bind(this));
+          this.el.sceneEl.addEventListener('exit-vr', this.onExitVR.bind(this));
+          
+          this.log('☕ Coffee Placer initialisé');
+        },
+
+        log: function (message) {
+          console.log('[AR]', message);
+          
+          // Mettre à jour le debug HTML
+          if (this.debugHtmlEl) {
+            this.debugHtmlEl.textContent = 'État: ' + message;
+          }
+          
+          // Mettre à jour le debug VR
+          if (this.debugTextEl) {
+            this.debugTextEl.setAttribute('value', message);
+          }
+        },
+
+        setupARButton: function () {
+          const self = this;
+          
+          this.startBtn.addEventListener('click', async () => {
+            try {
+              // Vérifier si WebXR est supporté
+              if (!navigator.xr) {
+                throw new Error('WebXR non supporté');
+              }
+              
+              // Vérifier si le mode AR est supporté
+              const arSupported = await navigator.xr.isSessionSupported('immersive-ar');
+              if (!arSupported) {
+                throw new Error('Mode AR non supporté');
+              }
+              
+              self.log('Démarrage AR...');
+              
+              // Demander une session AR avec passthrough et plane-detection
+              const session = await navigator.xr.requestSession('immersive-ar', {
+                requiredFeatures: ['local-floor', 'hit-test'],
+                optionalFeatures: ['anchors', 'hand-tracking', 'plane-detection', 'mesh-detection', 'dom-overlay'],
+                domOverlay: { root: document.querySelector('#info') }
+              });
+              
+              // IMPORTANT: Configurer le renderer pour le passthrough
+              const renderer = self.el.sceneEl.renderer;
+              renderer.xr.setSession(session);
+              
+              // S'assurer que le background est transparent pour le passthrough
+              const scene = self.el.sceneEl.object3D;
+              if (scene && scene.background) {
+                scene.background = null;
+              }
+              
+              // Cacher le bouton
+              self.startBtn.style.display = 'none';
+              
+              self.log('Session AR OK !');
+              
+              // IMPORTANT: Initialiser directement (ne pas attendre enter-vr)
+              setTimeout(() => {
+                self.initializeSession();
+              }, 800);
+              
+            } catch (error) {
+              self.log('Erreur: ' + error.message);
+              console.error('AR Error:', error);
+              alert('Erreur AR: ' + error.message);
+            }
+          });
+        },
+
+        onEnterVR: async function () {
+          this.log('Entrée VR/AR');
+          
+          // Attendre que la session soit établie (augmenté pour plus de stabilité)
+          setTimeout(() => {
+            this.initializeSession();
+          }, 800);
+        },
+
+        onExitVR: function () {
+          this.log('Sortie VR/AR');
+          
+          // Nettoyer proprement
+          if (this.hitTestSource) {
+            try {
+              this.hitTestSource.cancel();
+            } catch (e) {
+              console.warn('Hit-test cancel error:', e);
+            }
+            this.hitTestSource = null;
+          }
+          this.hitTestSourceRequested = false;
+          this.sessionInitialized = false;
+          
+          // Réafficher le bouton
+          this.startBtn.style.display = 'block';
+        },
+
+        initializeSession: async function () {
+          this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+          this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+          
+          if (!this.xrSession) {
+            this.log('Pas de session XR');
+            return;
+          }
+          
+          this.sessionInitialized = true;
+          this.log('Session OK');
+          
+          // Vérifier les features disponibles
+          if (this.xrSession.enabledFeatures) {
+            console.log('Features activées:', this.xrSession.enabledFeatures);
+            this.log('Features: ' + this.xrSession.enabledFeatures.join(', '));
+          }
+          
+          // IMPORTANT: Créer un hit-test source "viewer" comme fallback
+          // Cela fonctionne avec le regard (pas besoin de manette)
+          try {
+            const viewerSpace = await this.xrSession.requestReferenceSpace('viewer');
+            this.hitTestSource = await this.xrSession.requestHitTestSource({ space: viewerSpace });
+            this.hitTestSourceRequested = true;
+            this.log('Hit-test (viewer) OK !');
+          } catch (error) {
+            this.log('Hit-test error: ' + error.message);
+          }
+          
+          // Écouter les événements "select" (trigger de la manette ou tap)
+          this.xrSession.addEventListener('select', this.onSelect.bind(this));
+          
+          // Log des input sources
+          const inputSources = this.xrSession.inputSources;
+          this.log(`Inputs: ${inputSources.length} détectés`);
+          
+          this.log('Prêt ! Visez et appuyez');
+        },
+
+        /**
+         * Calcule le vecteur normal d'une surface à partir de son quaternion
+         * La normale est le vecteur Y (0,1,0) transformé par le quaternion
+         * @param {DOMPointReadOnly} q - Quaternion {x, y, z, w}
+         * @returns {Object} Normal {x, y, z}
+         */
+        quaternionToNormal: function (q) {
+          // Rotation du vecteur (0, 1, 0) par le quaternion
+          // Formule: v' = q * v * q^-1 (optimisée pour vecteur unitaire Y)
+          const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+          
+          // Composantes de la normale après rotation
+          const nx = 2 * (qx * qy - qz * qw);
+          const ny = 1 - 2 * (qx * qx + qz * qz);
+          const nz = 2 * (qy * qz + qx * qw);
+          
+          return { x: nx, y: ny, z: nz };
+        },
+
+        onSelect: function (event) {
+          this.log('>>> TRIGGER ! <<<');
+          
+          if (!this.lastHitPose) {
+            this.log('Aucune surface détectée');
+            return;
+          }
+          
+          // Placer une tasse à la position détectée
+          // On passe aussi la normale stockée
+          this.placeCup(this.lastHitPose, this.lastHitNormal);
+        },
+
+        /**
+         * Vérifie si une surface est un SOL ou TABLE (horizontale vers le haut)
+         * @param {Object} normal - Le vecteur normal {x, y, z}
+         * @returns {boolean} true si la surface est un sol (normale vers le haut)
+         */
+        isHorizontalSurface: function (normal) {
+          if (!normal) return true; // Par défaut on considère horizontal
+          
+          // SOL/TABLE = normale qui pointe vers le HAUT : Y > 0.7
+          // PLAFOND = normale qui pointe vers le BAS : Y < -0.7 → tasse tombe !
+          // MUR = normale horizontale : |Y| < 0.7 → tasse tombe !
+          
+          // On ne retourne true QUE si c'est un vrai sol (normale vers le haut)
+          return normal.y > 0.7;
+        },
+
+        /**
+         * Met à jour la position du sol invisible pour la physique
+         * @param {number} floorY - La hauteur Y du sol détecté
+         */
+        updatePhysicsFloor: function (floorY) {
+          const floorEl = document.querySelector('#physics-floor');
+          if (floorEl && floorY !== undefined) {
+            // Ne mettre à jour que si on a trouvé un sol plus bas
+            if (this.lowestFloorY === undefined || floorY < this.lowestFloorY) {
+              this.lowestFloorY = floorY;
+              floorEl.setAttribute('position', { x: 0, y: floorY, z: 0 });
+              console.log('[AR] Sol physique mis à jour:', floorY.toFixed(2));
+            }
+          }
+        },
+
+        placeCup: function (pose, normal) {
+          const position = pose.position;
+          const orientation = pose.orientation;
+          
+          // Vérifier si la surface est horizontale
+          const isHorizontal = this.isHorizontalSurface(normal);
+          
+          // Créer l'entité tasse
+          const cupEntity = document.createElement('a-entity');
+          cupEntity.setAttribute('gltf-model', '#coffee-cup-model');
+          cupEntity.setAttribute('scale', `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`);
+          
+          // ID unique pour debug
+          cupEntity.setAttribute('id', `cup-${Date.now()}`);
+          
+          // ========== GRABBABLE - Permet de saisir avec les mains ==========
+          cupEntity.setAttribute('grabbable', '');
+          
+          // IMPORTANT: Décaler le Y vers le haut pour que la base de la tasse
+          // soit sur la surface (pas le centre du modèle)
+          cupEntity.setAttribute('position', {
+            x: position.x,
+            y: position.y + this.data.cupYOffset,  // ← Décalage vers le haut
+            z: position.z
+          });
+          
+          // ========== PHYSIQUE ==========
+          // Toutes les tasses ont un dynamic-body pour pouvoir être saisies et lâchées
+          cupEntity.addEventListener('model-loaded', () => {
+            cupEntity.setAttribute('dynamic-body', {
+              mass: 0.3,           // 300g
+              shape: 'box',        // Forme de collision simplifiée
+              linearDamping: 0.3,  // Résistance de l'air
+              angularDamping: 0.3
+            });
+            
+            // Configurer les rebonds via le matériau physique
+            cupEntity.setAttribute('physics-material', {
+              restitution: 0.4,    // Rebond modéré (0-1)
+              friction: 0.5        // Friction au sol
+            });
+            
+            // Si posée sur surface horizontale, figer temporairement
+            if (isHorizontal) {
+              // Attendre que le body soit créé
+              setTimeout(() => {
+                if (cupEntity.body) {
+                  cupEntity.body.velocity.set(0, 0, 0);
+                  cupEntity.body.angularVelocity.set(0, 0, 0);
+                  cupEntity.body.sleep(); // Mettre en veille (pas de simulation)
+                }
+              }, 100);
+            }
+          });
+          
+          if (isHorizontal) {
+            this.log('☕ Tasse posée (sol/table)');
+            // Mettre à jour le sol invisible à cette hauteur
+            this.updatePhysicsFloor(position.y);
+          } else {
+            this.log('☕ Tasse sur mur → TOMBE !');
+          }
+          
+          // Animation d'apparition
+          cupEntity.setAttribute('animation', {
+            property: 'scale',
+            from: '0 0 0',
+            to: `${this.data.cupScale} ${this.data.cupScale} ${this.data.cupScale}`,
+            dur: 400,
+            easing: 'easeOutBack'
+          });
+          
+          // Ajouter à la scène
+          this.el.sceneEl.appendChild(cupEntity);
+          this.placedCups.push(cupEntity);
+          
+          // Limiter le nombre de tasses
+          if (this.placedCups.length > this.data.maxCups) {
+            const oldCup = this.placedCups.shift();
+            if (oldCup.parentNode) {
+              oldCup.parentNode.removeChild(oldCup);
+            }
+          }
+          
+          // Mettre à jour le compteur
+          this.updateCount();
+          
+          this.log(`Tasse placée ! (${this.placedCups.length})`);
         },
 
         updateCount: function () {
-          const countEl = document.querySelector('#count');
-          if (countEl) countEl.textContent = `Tasses: ${this.cupCount}`;
+          if (this.countEl) {
+            this.countEl.textContent = `Tasses placées: ${this.placedCups.length}`;
+          }
+        },
+
+        tick: function (time, delta) {
+          if (!this.sessionInitialized || !this.xrSession || !this.xrRefSpace) {
+            return;
+          }
+          
+          const frame = this.el.sceneEl.frame;
+          if (!frame) return;
+          
+          // Effectuer le hit-test (utilise le viewer/regard)
+          if (this.hitTestSource) {
+            try {
+              const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+              
+              if (hitTestResults.length > 0) {
+                const hit = hitTestResults[0];
+                const hitPose = hit.getPose(this.xrRefSpace);
+                
+                if (hitPose) {
+                  // Surface détectée !
+                  this.lastHitPose = hitPose.transform;
+                  
+                  // Extraire la normale de la surface à partir du quaternion
+                  // La normale d'une surface est le vecteur "up" (0, 1, 0) transformé
+                  const q = hitPose.transform.orientation;
+                  this.lastHitNormal = this.quaternionToNormal(q);
+                  
+                  this.updateCursor(hitPose.transform, true);
+                  
+                  // Debug occasionnel (toutes les 60 frames)
+                  this.hitCount = (this.hitCount || 0) + 1;
+                  if (this.hitCount % 60 === 1) {
+                    const pos = hitPose.transform.position;
+                    const normal = this.lastHitNormal;
+                    const isHoriz = this.isHorizontalSurface(normal) ? '(horizontal)' : '(vertical)';
+                    this.log(`Surface: ${pos.y.toFixed(2)}m ${isHoriz}`);
+                  }
+                }
+              } else {
+                // Pas de surface détectée
+                this.updateCursor(null, false);
+                
+                // Debug occasionnel
+                this.noHitCount = (this.noHitCount || 0) + 1;
+                if (this.noHitCount % 120 === 1) {
+                  this.log('Cherche surface...');
+                }
+              }
+            } catch (error) {
+              // Erreur silencieuse
+              console.warn('Hit-test error:', error);
+            }
+          } else {
+            // Pas encore de hit-test source
+            this.waitCount = (this.waitCount || 0) + 1;
+            if (this.waitCount % 120 === 1) {
+              this.log('Attente hit-test...');
+            }
+          }
+        },
+
+        updateCursor: function (pose, detected) {
+          if (!this.cursorEl) return;
+          
+          if (detected && pose) {
+            // Afficher le curseur à la position détectée
+            this.cursorEl.object3D.visible = true;
+            this.cursorEl.object3D.position.set(
+              pose.position.x,
+              pose.position.y,
+              pose.position.z
+            );
+            this.cursorEl.object3D.quaternion.set(
+              pose.orientation.x,
+              pose.orientation.y,
+              pose.orientation.z,
+              pose.orientation.w
+            );
+            
+            // Couleur verte = surface détectée
+            this.cursorEl.querySelectorAll('a-ring').forEach(ring => {
+              ring.setAttribute('color', '#00FF00');
+            });
+            
+            // Afficher la prévisualisation de la tasse
+            if (this.previewEl) {
+              this.previewEl.object3D.visible = true;
+              this.previewEl.object3D.position.set(
+                pose.position.x,
+                pose.position.y,
+                pose.position.z
+              );
+            }
+          } else {
+            // Cacher le curseur
+            this.cursorEl.object3D.visible = false;
+            if (this.previewEl) {
+              this.previewEl.object3D.visible = false;
+            }
+            this.lastHitPose = null;
+          }
+        },
+
+        remove: function () {
+          // Nettoyer les tasses
+          this.placedCups.forEach(cup => {
+            if (cup.parentNode) {
+              cup.parentNode.removeChild(cup);
+            }
+          });
+          this.placedCups = [];
         }
       });
 
       /**
        * =================================================================
        * Composant : ar-plane-detector
-       * Description : Détecte les plans et crée des colliders physiques
+       * Description : Détecte les surfaces réelles (sol, murs, tables)
+       * et crée des colliders invisibles pour la physique
        * =================================================================
        */
       AFRAME.registerComponent('ar-plane-detector', {
         schema: {
-          showPlanes: { type: 'boolean', default: true },
-          horizontalColor: { type: 'color', default: '#00FF00' },
-          verticalColor: { type: 'color', default: '#0088FF' }
+          showPlanes: { type: 'boolean', default: false },  // Afficher les plans en debug
+          horizontalColor: { type: 'color', default: '#00FF00' },  // Couleur sol/tables
+          verticalColor: { type: 'color', default: '#0088FF' }     // Couleur murs
         },
 
         init: function () {
-          this.detectedPlanes = new Map();
+          this.detectedPlanes = new Map();  // Map<XRPlane, A-Frame Entity>
+          this.planeEntities = [];
           this.xrSession = null;
           this.xrRefSpace = null;
           this.initialized = false;
+          this.planeCount = { horizontal: 0, vertical: 0 };
           this.frameCount = 0;
+          this.debugTextEl = document.querySelector('#vr-debug-text');
           
-          this.el.sceneEl.addEventListener('enter-vr', () => {
-            setTimeout(() => this.initSession(), 1000);
-          });
+          // Écouter les événements de session
+          this.el.sceneEl.addEventListener('enter-vr', this.onEnterVR.bind(this));
+          this.el.sceneEl.addEventListener('exit-vr', this.onExitVR.bind(this));
           
-          this.el.sceneEl.addEventListener('exit-vr', () => {
-            this.cleanup();
-          });
-          
-          console.log('[Planes] Composant initialisé');
+          console.log('[Plane Detector] Initialisé (showPlanes:', this.data.showPlanes, ')');
         },
 
-        initSession: function () {
-          this.xrSession = this.el.sceneEl.renderer.xr.getSession();
-          this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
-          
-          if (this.xrSession) {
-            this.initialized = true;
-            console.log('[Planes] Session OK');
-            
-            if (this.xrSession.enabledFeatures) {
-              const hasPlanes = this.xrSession.enabledFeatures.includes('plane-detection');
-              console.log('[Planes] plane-detection:', hasPlanes);
-            }
+        log: function (message) {
+          console.log('[Plane Detector]', message);
+          // Mettre à jour le debug VR
+          if (this.debugTextEl) {
+            this.debugTextEl.setAttribute('value', 'Planes: ' + message);
           }
         },
 
-        tick: function () {
-          if (!this.initialized || !this.xrSession || !this.xrRefSpace) return;
+        onEnterVR: function () {
+          console.log('[Plane Detector] Entrée VR/AR');
+          
+          setTimeout(() => {
+            this.xrSession = this.el.sceneEl.renderer.xr.getSession();
+            this.xrRefSpace = this.el.sceneEl.renderer.xr.getReferenceSpace();
+            
+            if (this.xrSession) {
+              this.initialized = true;
+              console.log('[Plane Detector] Session OK');
+              
+              // Vérifier si plane-detection est disponible
+              if (this.xrSession.enabledFeatures) {
+                const hasPlaneDetection = this.xrSession.enabledFeatures.includes('plane-detection');
+                console.log('[Plane Detector] plane-detection disponible:', hasPlaneDetection);
+              }
+            }
+          }, 1000);
+        },
+
+        onExitVR: function () {
+          console.log('[Plane Detector] Sortie VR/AR');
+          this.cleanup();
+        },
+
+        tick: function (time, delta) {
+          if (!this.initialized || !this.xrSession || !this.xrRefSpace) {
+            return;
+          }
           
           const frame = this.el.sceneEl.frame;
-          if (!frame || !frame.detectedPlanes) return;
+          if (!frame) return;
           
           this.frameCount++;
           
-          // Mettre à jour le compteur de plans
-          if (this.frameCount % 30 === 0) {
-            this.updatePlanesCount(frame.detectedPlanes.size);
+          // Vérifier si detectedPlanes existe sur le frame
+          if (!frame.detectedPlanes) {
+            // plane-detection pas supporté ou pas activé
+            if (this.frameCount === 60) {
+              this.log('Pas de planes (60 frames)');
+              console.warn('[Plane Detector] frame.detectedPlanes non disponible. Vérifiez que:');
+              console.warn('  1. plane-detection est dans les features');
+              console.warn('  2. Le Room Setup Quest est configuré');
+              console.warn('  3. L\'appareil supporte plane-detection');
+            }
+            return;
           }
           
-          // Créer/mettre à jour les plans
+          // Log occasionnel
+          if (this.frameCount % 120 === 1 && frame.detectedPlanes.size > 0) {
+            this.log(`${frame.detectedPlanes.size} plans actifs`);
+          }
+          
+          // Parcourir tous les plans détectés
           frame.detectedPlanes.forEach((plane) => {
+            // Vérifier si on a déjà créé une entité pour ce plan
             if (!this.detectedPlanes.has(plane)) {
-              this.createPlane(plane, frame);
+              // Nouveau plan détecté !
+              this.createPlaneEntity(plane, frame);
             } else {
-              this.updatePlane(plane, frame);
+              // Mettre à jour la position du plan existant
+              this.updatePlaneEntity(plane, frame);
             }
           });
           
-          // Supprimer les plans obsolètes
+          // Supprimer les plans qui ne sont plus détectés
           this.detectedPlanes.forEach((entity, plane) => {
             if (!frame.detectedPlanes.has(plane)) {
-              this.removePlane(plane);
+              this.removePlaneEntity(plane);
             }
           });
         },
 
-        createPlane: function (plane, frame) {
+        createPlaneEntity: function (plane, frame) {
           try {
             const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
             if (!pose) return;
             
-            const pos = pose.transform.position;
-            const ori = pose.transform.orientation;
-            const dims = this.getDimensions(plane.polygon);
+            const position = pose.transform.position;
+            const orientation = pose.transform.orientation;
             
-            // Créer l'entité
-            const entity = document.createElement('a-box');
-            entity.setAttribute('position', { x: pos.x, y: pos.y, z: pos.z });
-            entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
+            // Calculer les dimensions du plan à partir du polygon
+            const dimensions = this.calculatePlaneDimensions(plane.polygon);
+            if (!dimensions) return;
             
-            // Dimensions selon orientation
-            const isHorizontal = plane.orientation === 'horizontal';
-            entity.setAttribute('scale', {
-              x: dims.width,
-              y: isHorizontal ? 0.02 : dims.height,
-              z: isHorizontal ? dims.height : 0.02
+            // Créer l'entité A-Frame
+            const planeEntity = document.createElement('a-box');
+            
+            // Configuration de base
+            planeEntity.setAttribute('position', {
+              x: position.x,
+              y: position.y,
+              z: position.z
             });
             
-            // Apparence (debug)
+            // Quaternion pour l'orientation
+            planeEntity.object3D.quaternion.set(
+              orientation.x,
+              orientation.y,
+              orientation.z,
+              orientation.w
+            );
+            
+            // Dimensions (très fin en Y pour les plans horizontaux)
+            if (plane.orientation === 'horizontal') {
+              planeEntity.setAttribute('scale', {
+                x: dimensions.width,
+                y: 0.01,  // Très fin
+                z: dimensions.height
+              });
+              this.planeCount.horizontal++;
+            } else {
+              planeEntity.setAttribute('scale', {
+                x: dimensions.width,
+                y: dimensions.height,
+                z: 0.01  // Très fin
+              });
+              this.planeCount.vertical++;
+            }
+            
+            // Apparence
             if (this.data.showPlanes) {
-              entity.setAttribute('material', {
-                color: isHorizontal ? this.data.horizontalColor : this.data.verticalColor,
+              const color = plane.orientation === 'horizontal' 
+                ? this.data.horizontalColor 
+                : this.data.verticalColor;
+              
+              planeEntity.setAttribute('material', {
+                color: color,
                 opacity: 0.3,
                 transparent: true,
                 shader: 'flat'
               });
             } else {
-              entity.setAttribute('visible', false);
+              planeEntity.setAttribute('visible', false);
             }
             
-            // ⚡ PHYSIQUE : Collider statique
-            entity.setAttribute('static-body', '');
+            // Ajouter une classe pour identification
+            planeEntity.classList.add('detected-plane');
+            planeEntity.classList.add(plane.orientation === 'horizontal' ? 'plane-horizontal' : 'plane-vertical');
             
-            entity.classList.add('plane', isHorizontal ? 'horizontal' : 'vertical');
+            // Stocker des infos sur le plan
+            planeEntity.dataset.planeOrientation = plane.orientation;
             
-            this.el.sceneEl.appendChild(entity);
-            this.detectedPlanes.set(plane, entity);
+            // Ajouter à la scène
+            this.el.sceneEl.appendChild(planeEntity);
             
-            console.log(`[Planes] Nouveau plan ${plane.orientation}: ${dims.width.toFixed(2)}x${dims.height.toFixed(2)}m`);
+            // Enregistrer dans notre Map
+            this.detectedPlanes.set(plane, planeEntity);
+            this.planeEntities.push(planeEntity);
             
-          } catch (e) {
-            console.warn('[Planes] Erreur création:', e);
+            console.log(`[Plane Detector] Nouveau plan ${plane.orientation}: ${dimensions.width.toFixed(2)}x${dimensions.height.toFixed(2)}m`);
+            console.log(`[Plane Detector] Total: ${this.planeCount.horizontal} horizontal, ${this.planeCount.vertical} vertical`);
+            
+          } catch (error) {
+            console.warn('[Plane Detector] Erreur création plan:', error);
           }
         },
 
-        updatePlane: function (plane, frame) {
+        updatePlaneEntity: function (plane, frame) {
           const entity = this.detectedPlanes.get(plane);
           if (!entity) return;
           
@@ -420,37 +1013,65 @@
             const pose = frame.getPose(plane.planeSpace, this.xrRefSpace);
             if (!pose) return;
             
-            const pos = pose.transform.position;
-            const ori = pose.transform.orientation;
+            // Mettre à jour la position
+            entity.object3D.position.set(
+              pose.transform.position.x,
+              pose.transform.position.y,
+              pose.transform.position.z
+            );
             
-            entity.object3D.position.set(pos.x, pos.y, pos.z);
-            entity.object3D.quaternion.set(ori.x, ori.y, ori.z, ori.w);
+            // Mettre à jour l'orientation
+            entity.object3D.quaternion.set(
+              pose.transform.orientation.x,
+              pose.transform.orientation.y,
+              pose.transform.orientation.z,
+              pose.transform.orientation.w
+            );
             
-          } catch (e) {}
-        },
-
-        removePlane: function (plane) {
-          const entity = this.detectedPlanes.get(plane);
-          if (entity && entity.parentNode) {
-            entity.parentNode.removeChild(entity);
+          } catch (error) {
+            // Silencieux
           }
-          this.detectedPlanes.delete(plane);
-          console.log('[Planes] Plan supprimé');
         },
 
-        getDimensions: function (polygon) {
+        removePlaneEntity: function (plane) {
+          const entity = this.detectedPlanes.get(plane);
+          if (entity) {
+            if (entity.parentNode) {
+              entity.parentNode.removeChild(entity);
+            }
+            
+            // Mettre à jour le compteur
+            if (entity.dataset.planeOrientation === 'horizontal') {
+              this.planeCount.horizontal--;
+            } else {
+              this.planeCount.vertical--;
+            }
+            
+            // Retirer de nos listes
+            this.detectedPlanes.delete(plane);
+            const idx = this.planeEntities.indexOf(entity);
+            if (idx > -1) {
+              this.planeEntities.splice(idx, 1);
+            }
+            
+            console.log('[Plane Detector] Plan supprimé');
+          }
+        },
+
+        calculatePlaneDimensions: function (polygon) {
           if (!polygon || polygon.length < 3) {
-            return { width: 0.5, height: 0.5 };
+            return { width: 0.5, height: 0.5 };  // Valeur par défaut
           }
           
+          // Trouver les min/max pour calculer la bounding box
           let minX = Infinity, maxX = -Infinity;
           let minZ = Infinity, maxZ = -Infinity;
           
-          for (const p of polygon) {
-            minX = Math.min(minX, p.x);
-            maxX = Math.max(maxX, p.x);
-            minZ = Math.min(minZ, p.z);
-            maxZ = Math.max(maxZ, p.z);
+          for (const point of polygon) {
+            minX = Math.min(minX, point.x);
+            maxX = Math.max(maxX, point.x);
+            minZ = Math.min(minZ, point.z);
+            maxZ = Math.max(maxZ, point.z);
           }
           
           return {
@@ -459,18 +1080,33 @@
           };
         },
 
-        updatePlanesCount: function (count) {
-          const el = document.querySelector('#planes-count');
-          if (el) el.textContent = `Plans détectés: ${count}`;
+        cleanup: function () {
+          // Supprimer toutes les entités de plan
+          this.planeEntities.forEach(entity => {
+            if (entity.parentNode) {
+              entity.parentNode.removeChild(entity);
+            }
+          });
+          
+          this.detectedPlanes.clear();
+          this.planeEntities = [];
+          this.planeCount = { horizontal: 0, vertical: 0 };
+          this.initialized = false;
+          
+          console.log('[Plane Detector] Nettoyage effectué');
         },
 
-        cleanup: function () {
-          this.detectedPlanes.forEach((entity) => {
-            if (entity.parentNode) entity.parentNode.removeChild(entity);
-          });
-          this.detectedPlanes.clear();
-          this.initialized = false;
-          console.log('[Planes] Nettoyé');
+        remove: function () {
+          this.cleanup();
+        },
+
+        // Méthode publique pour récupérer les plans (utile pour la physique)
+        getPlanes: function () {
+          return {
+            all: this.planeEntities,
+            horizontal: this.planeEntities.filter(e => e.dataset.planeOrientation === 'horizontal'),
+            vertical: this.planeEntities.filter(e => e.dataset.planeOrientation === 'vertical')
+          };
         }
       });
     </script>
