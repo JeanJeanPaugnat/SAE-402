@@ -1,80 +1,139 @@
 /* global AFRAME, THREE */
 
+/**
+ * AR Plane Detection - Détecte les surfaces réelles et crée des colliders
+ */
 AFRAME.registerComponent('ar-plane-detection', {
     schema: {
-        visualizePlanes: { type: 'boolean', default: true },
-        color: { type: 'color', default: '#FF0000' } // Red for planes to distinguish from Mesh
+        visualize: { type: 'boolean', default: true }
     },
 
     init: function () {
-        this.planeEntities = new Map();
+        this.planes = new Map();
         this.xrSession = null;
+        this.referenceSpace = null;
 
         this.el.sceneEl.addEventListener('enter-vr', () => {
-            const session = this.el.sceneEl.renderer.xr.getSession();
-            if (session) {
-                this.xrSession = session;
-                console.log('Plane detection capabilities:', session.enabledFeatures.includes('plane-detection'));
-            }
+            setTimeout(() => {
+                const renderer = this.el.sceneEl.renderer;
+                if (renderer && renderer.xr) {
+                    this.xrSession = renderer.xr.getSession();
+                    this.referenceSpace = renderer.xr.getReferenceSpace();
+                    if (this.xrSession) {
+                        console.log('[Planes] Session active, plane-detection:',
+                            this.xrSession.enabledFeatures?.includes('plane-detection'));
+                    }
+                }
+            }, 500);
         });
     },
 
     tick: function () {
         if (!this.xrSession) return;
 
-        if (this.xrSession.detectedPlanes) {
-            this.updatePlanes(this.xrSession.detectedPlanes);
-        }
+        const frame = this.el.sceneEl.renderer.xr.getFrame();
+        if (!frame) return;
+
+        // Essayer d'accéder aux plans détectés
+        const detectedPlanes = frame.detectedPlanes || this.xrSession.detectedPlanes;
+        if (!detectedPlanes) return;
+
+        // Mettre à jour les plans
+        detectedPlanes.forEach(plane => {
+            const id = this.getPlaneId(plane);
+
+            if (!this.planes.has(id)) {
+                this.createPlane(plane, id, frame);
+            } else {
+                this.updatePlane(plane, id, frame);
+            }
+        });
+
+        // Supprimer les plans disparus
+        this.planes.forEach((entity, id) => {
+            let found = false;
+            detectedPlanes.forEach(p => {
+                if (this.getPlaneId(p) === id) found = true;
+            });
+            if (!found) {
+                entity.parentNode?.removeChild(entity);
+                this.planes.delete(id);
+            }
+        });
     },
 
-    updatePlanes: function (detectedPlanes) {
-        if (!this.data.visualizePlanes) return;
+    getPlaneId: function (plane) {
+        return plane.planeSpace?.toString() || `plane_${Math.random()}`;
+    },
 
-        // Remove lost planes
-        this.planeEntities.forEach((entity, plane) => {
-            if (!detectedPlanes.has(plane)) {
-                entity.parentNode.removeChild(entity);
-                this.planeEntities.delete(plane);
+    createPlane: function (plane, id, frame) {
+        const entity = document.createElement('a-entity');
+
+        // Calculer taille
+        let width = 1, depth = 1;
+        if (plane.polygon && plane.polygon.length > 0) {
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            for (const p of plane.polygon) {
+                minX = Math.min(minX, p.x);
+                maxX = Math.max(maxX, p.x);
+                minZ = Math.min(minZ, p.z);
+                maxZ = Math.max(maxZ, p.z);
             }
+            width = Math.max(0.1, maxX - minX);
+            depth = Math.max(0.1, maxZ - minZ);
+        }
+
+        // Géométrie box fine
+        entity.setAttribute('geometry', {
+            primitive: 'box',
+            width: width,
+            height: 0.02,
+            depth: depth
         });
 
-        // Add/Update planes
-        detectedPlanes.forEach(plane => {
-            let entity = this.planeEntities.get(plane);
+        // Couleur selon orientation
+        const isHorizontal = plane.orientation === 'horizontal';
+        if (this.data.visualize) {
+            entity.setAttribute('material', {
+                color: isHorizontal ? '#00AAFF' : '#FF6600',
+                opacity: 0.4,
+                transparent: true
+            });
+        } else {
+            entity.setAttribute('visible', 'false');
+        }
 
-            if (!entity) {
-                // Visualize Plane
-                entity = document.createElement('a-entity');
+        // PHYSIQUE
+        entity.setAttribute('static-body', '');
 
-                // Create a polygon based on plane.polygon usually, but simplest is a quad for basic bounds
-                // We'll use a simple plane geometry for now, updating scale
-                entity.setAttribute('geometry', 'primitive: plane; width: 1; height: 1');
-                entity.setAttribute('material', {
-                    shader: 'flat',
-                    color: plane.orientation === 'horizontal' ? '#4444FF' : '#FF4444', // Blue floor/table, Red wall
-                    opacity: 0.2,
-                    transparent: true,
-                    side: 'double'
-                });
-                entity.setAttribute('rotation', '-90 0 0');
+        this.el.sceneEl.appendChild(entity);
+        this.planes.set(id, entity);
 
-                // Add physics tag for real-world-physics.js to pick up
-                entity.setAttribute('data-ar-plane', '');
+        // Positionner
+        this.updatePlane(plane, id, frame);
 
-                this.el.sceneEl.appendChild(entity);
-                this.planeEntities.set(plane, entity);
-            }
+        console.log('[Planes] Nouveau plan:', plane.orientation, 'taille:', width.toFixed(2), 'x', depth.toFixed(2));
+    },
 
-            const frame = this.el.sceneEl.renderer.xr.getFrame();
-            const pose = frame.getPose(plane.planeSpace, this.el.sceneEl.renderer.xr.getReferenceSpace());
+    updatePlane: function (plane, id, frame) {
+        const entity = this.planes.get(id);
+        if (!entity || !plane.planeSpace || !this.referenceSpace) return;
 
+        try {
+            const pose = frame.getPose(plane.planeSpace, this.referenceSpace);
             if (pose) {
-                entity.object3D.position.copy(pose.transform.position);
-                entity.object3D.quaternion.copy(pose.transform.orientation);
-                // Rough approximation of size if polygon is complex. 
-                // For Quest, detectedPlanes are usually rects or polygons.
-                // Using hit-test is better for placement, but this shows "detected area"
+                const { position, orientation } = pose.transform;
+                entity.object3D.position.set(position.x, position.y, position.z);
+                entity.object3D.quaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
+
+                // Sync physics body
+                if (entity.body) {
+                    entity.body.position.set(position.x, position.y, position.z);
+                    entity.body.quaternion.set(orientation.x, orientation.y, orientation.z, orientation.w);
+                }
             }
-        });
+        } catch (e) {
+            // Ignore pose errors
+        }
     }
 });

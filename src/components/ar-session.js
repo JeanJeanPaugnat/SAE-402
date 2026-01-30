@@ -51,7 +51,7 @@ AFRAME.registerComponent('ar-session', {
         try {
             this.xrSession = await navigator.xr.requestSession('immersive-ar', {
                 requiredFeatures: ['local-floor'],
-                optionalFeatures: ['hand-tracking', 'dom-overlay'],
+                optionalFeatures: ['hand-tracking', 'dom-overlay', 'plane-detection'],
                 domOverlay: { root: document.getElementById('overlay') }
             });
 
