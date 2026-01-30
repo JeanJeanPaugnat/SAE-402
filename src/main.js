@@ -1,5 +1,5 @@
-import 'aframe';
-import 'aframe-extras';
+import 'aframe' ;
+import 'aframe-extras' ;
 import 'aframe-physics-system';
 
 /* global THREE */
