@@ -58,8 +58,7 @@
            referenceSpaceType: local-floor;"
     vr-mode-ui="enabled: false"
     renderer="colorManagement: true; alpha: true; antialias: true"
-    background="color: transparent"
-    ar-hit-test="#reticle">
+    background="color: transparent">
     
     <!-- ============================================
          ASSETS (Modeles 3D, sons, textures)
@@ -103,11 +102,33 @@
     <a-camera position="0 1.6 0"></a-camera>
 
     <!-- ============================================
+         HIT-TEST (Detection de surfaces)
+         ============================================
+         
+         Inspire de webxr-samples/hit-test.html :
+         1. Cree un xrHitTestSource depuis l'espace viewer
+         2. A chaque frame, detecte ou le regard croise une surface
+         3. Deplace le reticule a cette position
+         ============================================ -->
+    
+    <a-entity xr-hit-test="reticle: #reticle"></a-entity>
+
+    <!-- ============================================
+         OBJECT PLACER (Placement d'objets)
+         ============================================
+         
+         Ecoute l'evenement "select" de WebXR (tap ecran / trigger)
+         et place l'objet a la position du reticule.
+         ============================================ -->
+    
+    <a-entity xr-object-placer="model: #coffee-cup-model; scale: 0.1"></a-entity>
+
+    <!-- ============================================
          RETICULE (Curseur de placement)
          ============================================
          
          Ce cercle apparait sur les surfaces detectees.
-         Il est deplace par le composant ar-hit-test.
+         Il est deplace par le composant surface-detector.
          ============================================ -->
     
     <a-entity id="reticle" visible="false">
@@ -134,7 +155,6 @@
          
          - oculus-touch-controls : Detecte la manette
          - controller-grab : Permet d'attraper (GRIP)
-         - cup-spawner : Permet de creer des tasses (A + TRIGGER)
          ============================================ -->
     
     <!-- Manette gauche -->
@@ -143,11 +163,10 @@
               controller-grab="hand: left">
     </a-entity>
     
-    <!-- Manette droite (avec cup-spawner) -->
+    <!-- Manette droite -->
     <a-entity id="right-controller"
               oculus-touch-controls="hand: right"
-              controller-grab="hand: right"
-              cup-spawner>
+              controller-grab="hand: right">
     </a-entity>
 
   </a-scene>
