@@ -14,6 +14,10 @@ window.addEventListener('load', () => {
         const sceneEl = document.getElementById('scene');
         const cubeEl = document.getElementById('cube');
         const cursorEl = document.getElementById('cursor');
+        const rulesPopup = document.getElementById('rules-popup');
+        const rulesOkBtn = document.getElementById('rules-ok-btn');
+
+        let rulesShown = localStorage.getItem('coffee-quest-rules-shown') === 'true';
 
         if (!sceneEl || !cubeEl) {
             debugEl.textContent = 'Éléments manquants!';
@@ -58,6 +62,13 @@ window.addEventListener('load', () => {
 
                 debugEl.textContent = 'AR OK!';
 
+                // Afficher les règles si première fois
+                if (!rulesShown) {
+                    setTimeout(() => {
+                        rulesPopup.style.display = 'block';
+                    }, 1000);
+                }
+
                 // Setup hit-test après délai
                 setTimeout(async () => {
                     try {
@@ -76,6 +87,14 @@ window.addEventListener('load', () => {
             } catch (e) {
                 debugEl.textContent = 'Erreur: ' + e.message;
             }
+        };
+
+        // Bouton OK du popup de règles
+        rulesOkBtn.onclick = () => {
+            rulesPopup.style.display = 'none';
+            localStorage.setItem('coffee-quest-rules-shown', 'true');
+            rulesShown = true;
+            debugEl.textContent = 'Bon jeu !';
         };
 
         function xrLoop(time, frame) {

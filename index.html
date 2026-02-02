@@ -5,15 +5,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Coffee Quest AR - SAE 402</title>
+  <link rel="stylesheet" href="/src/style.css">
 </head>
 
 <body>
-  <div id="overlay"
-    style="position:fixed;top:10px;left:10px;z-index:999;background:rgba(0,0,0,0.8);color:white;padding:15px;font-family:sans-serif;border-radius:8px;">
-    <h2 style="margin:0 0 10px 0;">☕ Coffee Quest AR</h2>
-    <p id="debug" style="color:yellow;margin:5px 0;">Chargement...</p>
-    <p id="surfaces" style="color:cyan;margin:5px 0;">Surfaces: 0</p>
-    <button id="btn" style="padding:10px 20px;font-size:16px;">Lancer AR</button>
+  <div id="overlay">
+    <h2>☕ Coffee Quest AR</h2>
+    <p id="debug">Chargement...</p>
+    <p id="surfaces">Surfaces: 0</p>
+    <button id="btn">Lancer AR</button>
+  </div>
+
+  <!-- Popup des règles -->
+  <div id="rules-popup">
+    <h2>☕ Bienvenue Barista !</h2>
+    <p>
+      Votre mission : préparer et servir des cafés !
+    </p>
+    <p>
+      📍 <strong>Pour commencer :</strong><br>
+      Placez la machine à café et les tasses sur une table ou surface plane.
+    </p>
+    <p>
+      ✋ Utilisez votre main pour attraper et déplacer les objets.
+    </p>
+    <button id="rules-ok-btn">OK, C'est parti !</button>
   </div>
 
   <a-scene id="scene" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"

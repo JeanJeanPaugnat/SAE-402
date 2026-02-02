@@ -100,3 +100,104 @@ body {
   z-index: 1000;
   max-width: 300px;
 }
+
+/* === OVERLAY DEBUG === */
+#overlay {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 15px;
+  font-family: sans-serif;
+  border-radius: 8px;
+}
+
+#overlay h2 {
+  margin: 0 0 10px 0;
+}
+
+#overlay p {
+  margin: 5px 0;
+}
+
+#debug {
+  color: yellow;
+}
+
+#surfaces {
+  color: cyan;
+}
+
+#btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  margin-top: 10px;
+  background: #4CC3D9;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#btn:hover {
+  background: #3498db;
+}
+
+/* === POPUP RÈGLES === */
+#rules-popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.95);
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  max-width: 400px;
+  text-align: center;
+  border: 2px solid #4CC3D9;
+}
+
+#rules-popup h2 {
+  margin: 0 0 20px 0;
+  color: #FFD700;
+}
+
+#rules-popup p {
+  margin: 15px 0;
+  line-height: 1.6;
+}
+
+#rules-popup p:first-of-type {
+  font-size: 16px;
+}
+
+#rules-popup p:not(:first-of-type) {
+  font-size: 14px;
+}
+
+#rules-ok-btn {
+  margin-top: 20px;
+  padding: 12px 40px;
+  font-size: 18px;
+  background: #4CC3D9;
+  color: white;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s, transform 0.2s;
+}
+
+#rules-ok-btn:hover {
+  background: #3498db;
+  transform: scale(1.05);
+}
+
+#rules-ok-btn:active {
+  transform: scale(0.98);
+}
