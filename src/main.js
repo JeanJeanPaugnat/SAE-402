@@ -16,8 +16,17 @@ window.addEventListener('load', () => {
         const cursorEl = document.getElementById('cursor');
         const rulesPopup = document.getElementById('rules-popup');
         const rulesOkBtn = document.getElementById('rules-ok-btn');
+        const clientsPopup = document.getElementById('clients-popup');
+        const clientsOkBtn = document.getElementById('clients-ok-btn');
+        const coffeeMachine = document.querySelector('[data-machine]');
+        const coffeeSound = document.getElementById('coffee-sound');
+        const cupSound = document.getElementById('cup-sound');
 
         let rulesShown = localStorage.getItem('coffee-quest-rules-shown') === 'true';
+        let objectsPlaced = 0;
+        let setupComplete = false;
+        let previousButtonStates = [{ b: false }, { b: false }];
+        let isMakingCoffee = false;
 
         if (!sceneEl || !cubeEl) {
             debugEl.textContent = 'Éléments manquants!';
@@ -94,7 +103,13 @@ window.addEventListener('load', () => {
             rulesPopup.style.display = 'none';
             localStorage.setItem('coffee-quest-rules-shown', 'true');
             rulesShown = true;
-            debugEl.textContent = 'Bon jeu !';
+            debugEl.textContent = 'Placez les objets sur la table...';
+        };
+
+        // Bouton OK du popup clients
+        clientsOkBtn.onclick = () => {
+            clientsPopup.style.display = 'none';
+            debugEl.textContent = 'En attente des clients...';
         };
 
         function xrLoop(time, frame) {
@@ -122,6 +137,29 @@ window.addEventListener('load', () => {
                         cursorEl.object3D.visible = false;
                     }
                 } catch (e) { }
+            }
+
+            // Vérifier le bouton B si le setup est complet
+            if (setupComplete && !isMakingCoffee && coffeeMachine) {
+                const session = sceneEl.renderer.xr.getSession();
+                if (session && session.inputSources) {
+                    session.inputSources.forEach((source, index) => {
+                        if (source.gamepad) {
+                            const gamepad = source.gamepad;
+                            const bPressed = gamepad.buttons[5] && gamepad.buttons[5].pressed;
+                            
+                            // Détection du front montant (bouton vient d'être pressé)
+                            if (bPressed && !previousButtonStates[index].b) {
+                                // Vérifier si on pointe vers la machine
+                                const controller = sceneEl.renderer.xr.getController(index);
+                                if (controller && isPointingAtMachine(controller)) {
+                                    makeCoffee();
+                                }
+                            }
+                            previousButtonStates[index].b = bPressed;
+                        }
+                    });
+                }
             }
 
             // Cube suit le controller
@@ -193,6 +231,21 @@ window.addEventListener('load', () => {
             grabbed = false;
             grabController = null;
             debugEl.textContent = 'Lâché!';
+
+            // Vérifier si l'objet a été placé (vitesse faible = posé)
+            const speed = Math.sqrt(vx*vx + vy*vy + vz*vz);
+            if (speed < 2 && !setupComplete) {
+                objectsPlaced++;
+                debugEl.textContent = `Objets placés: ${objectsPlaced}/2`;
+                
+                // Si les 2 objets sont placés, afficher le popup
+                if (objectsPlaced >= 2) {
+                    setupComplete = true;
+                    setTimeout(() => {
+                        clientsPopup.style.display = 'block';
+                    }, 500);
+                }
+            }
         }
 
         function addSurface(x, y, z) {
@@ -213,6 +266,47 @@ window.addEventListener('load', () => {
             surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
 
             if (surfaces.length > 200) surfaces.shift();
+        }
+
+        function isPointingAtMachine(controller) {
+            const raycaster = new THREE.Raycaster();
+            const tempMatrix = new THREE.Matrix4();
+            tempMatrix.identity().extractRotation(controller.matrixWorld);
+            
+            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+            
+            const distance = raycaster.ray.distanceToPoint(coffeeMachine.object3D.position);
+            return distance < 0.3;
+        }
+
+        function makeCoffee() {
+            isMakingCoffee = true;
+            debugEl.textContent = '☕ Préparation du café...';
+            
+            // Jouer le son de la machine
+            coffeeSound.play();
+            
+            // Quand le son se termine, faire apparaître la tasse
+            coffeeSound.onended = () => {
+                // Créer une nouvelle tasse
+                const newCup = document.createElement('a-entity');
+                const machinePos = coffeeMachine.object3D.position;
+                
+                newCup.setAttribute('gltf-model', '#coffee-cup-model');
+                newCup.setAttribute('position', `${machinePos.x + 0.3} ${machinePos.y} ${machinePos.z}`);
+                newCup.setAttribute('rotation', '0 180 0');
+                newCup.setAttribute('scale', '0.5 0.5 0.5');
+                newCup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.3;angularDamping:0.3');
+                
+                sceneEl.appendChild(newCup);
+                
+                // Jouer le son de la tasse
+                cupSound.play();
+                
+                debugEl.textContent = '✅ Café prêt !';
+                isMakingCoffee = false;
+            };
         }
 
     }, 1000);

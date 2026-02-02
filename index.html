@@ -32,12 +32,26 @@
     <button id="rules-ok-btn">OK, C'est parti !</button>
   </div>
 
+  <!-- Popup d'annonce des clients -->
+  <div id="clients-popup">
+    <h2>🎉 Café en place !</h2>
+    <p>
+      Parfait ! Votre espace de travail est prêt.
+    </p>
+    <p>
+      ☕ Les premiers clients vont arriver...
+    </p>
+    <button id="clients-ok-btn">Prêt à servir !</button>
+  </div>
+
   <a-scene id="scene" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"
     background="color:transparent">
 
     <a-assets>
       <a-asset-item id="coffee-cup-model" src="/models/Coffee cup.glb"></a-asset-item>
       <a-asset-item id="coffee-machine-model" src="/models/Coffee Machine.glb"></a-asset-item>
+      <audio id="coffee-sound" src="/assets/café.MP3" preload="auto"></audio>
+      <audio id="cup-sound" src="/assets/tasse.mp3" preload="auto"></audio>
     </a-assets>
 
     <a-light type="ambient" intensity="0.6"></a-light>
@@ -63,6 +77,7 @@
     <!-- Machine à café (attrapable) -->
     <a-entity 
       id="cube"
+      data-machine="true"
       gltf-model="#coffee-machine-model" 
       position="-0.5 0.95 -1" 
       rotation="0 180 0" 
