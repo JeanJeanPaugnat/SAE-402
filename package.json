@@ -13,6 +13,8 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
-    "aframe": "^1.7.1"
+    "aframe": "^1.7.1",
+    "aframe-extras": "^7.6.1",
+    "aframe-physics-system": "^4.0.2"
   }
 }

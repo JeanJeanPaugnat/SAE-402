@@ -1,87 +1,77 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Coffee Quest AR - SAE 402</title>
-  
-  <!-- ============================================
-       LIBRAIRIES EXTERNES
-       ============================================ -->
-  
-  <!-- A-Frame : Le moteur 3D/XR -->
-  <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
 </head>
 
 <body>
-  <!-- ============================================
-       INTERFACE HTML (visible avant l'AR)
-       ============================================ -->
-  
-  <!-- Panel de debug en haut a gauche -->
-  <div id="debug-panel">
-    <h2>Coffee Quest AR</h2>
-    <p>Placez des tasses de cafe dans votre espace !</p>
-    <p id="cup-count">Tasses posees: 0</p>
-    <p id="debug-status">Chargement...</p>
-  </div>
-  
-  <!-- Bouton pour lancer l'AR -->
-  <button id="start-ar-btn">Demarrer en AR</button>
-  
-  <!-- Instructions -->
-  <div id="instructions">
-    <strong>Manette droite :</strong><br>
-    A = Creer une tasse<br>
-    Trigger = Poser la tasse<br>
-    Grip = Attraper une tasse
+  <div id="overlay"
+    style="position:fixed;top:10px;left:10px;z-index:999;background:rgba(0,0,0,0.8);color:white;padding:15px;font-family:sans-serif;border-radius:8px;">
+    <h2 style="margin:0 0 10px 0;">☕ Coffee Quest AR</h2>
+    <p id="debug" style="color:yellow;margin:5px 0;">Chargement...</p>
+    <p id="surfaces" style="color:cyan;margin:5px 0;">Surfaces: 0</p>
+    <button id="btn" style="padding:10px 20px;font-size:16px;">Lancer AR</button>
   </div>
 
-  <!-- ============================================
-       SCENE A-FRAME
-       ============================================
-       
-       C'est ici que tout le 3D se passe !
-       
-       ATTRIBUTS DE LA SCENE :
-       - webxr : Configure les features WebXR (hit-test, etc.)
-       - vr-mode-ui : Desactive le bouton VR par defaut
-       - renderer : Options de rendu (transparence pour AR)
-       - background : Transparent pour voir la camera
-       ============================================ -->
-  
-  <a-scene 
-  background="color: #333" 
-  renderer="colorManagement: true;">
+  <a-scene id="scene" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"
+    background="color:transparent">
 
-  <a-assets>
-    <a-asset-item id="coffee-cup-model" src="./models/Coffee cup.glb"></a-asset-item>
-    <a-asset-item id="coffee-machine-model" src="./models/Coffee Machine.glb"></a-asset-item>
+    <a-assets>
+      <a-asset-item id="coffee-cup-model" src="/models/Coffee cup.glb"></a-asset-item>
+      <a-asset-item id="coffee-machine-model" src="/models/Coffee Machine.glb"></a-asset-item>
     </a-assets>
 
-  <a-box position="0 0.5 -1" width="3" height="0.1" depth="1.2" color="#8B4513"></a-box> 
-  
-  <a-entity gltf-model="#coffee-machine-model" position="-0.5 0.95 -1" rotation="0 180 0" scale="0.6 0.6 0.6"></a-entity>
-  <a-entity gltf-model="#coffee-cup-model" position="0.2 0.85 -0.9" rotation="0 180 0" scale="0.5 0.5 0.5"></a-entity>
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
 
-  <a-light type="ambient" intensity="1"></a-light>
-  <a-light type="directional" position="1 2 1"></a-light>
-  
-  <a-camera position="0 1.6 0.5" look-controls wasd-controls></a-camera>
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0"></a-camera>
+    </a-entity>
 
-</a-scene>
+    <!-- CUBE original du camarade -->
+    <a-box id="cube" position="0 0.5 -0.7" width="0.15" height="0.15" depth="0.15" color="#8A2BE2"
+      dynamic-body="mass:0.5;linearDamping:0.3;angularDamping:0.3"></a-box>
 
-  <!-- ============================================
-       SCRIPTS
-       ============================================
-       
-       Vite s'occupe de bundler main.js qui importe
-       tous les composants A-Frame necessaires.
-       ============================================ -->
-  
+    <!-- Comptoir (surface statique) -->
+    <a-box 
+      position="0 0.5 -1" 
+      width="3" 
+      height="0.1" 
+      depth="1.2" 
+      color="#8B4513"
+      static-body></a-box> 
+    
+    <!-- Machine à café (attrapable) -->
+    <a-entity 
+      id="cube"
+      gltf-model="#coffee-machine-model" 
+      position="-0.5 0.95 -1" 
+      rotation="0 180 0" 
+      scale="0.6 0.6 0.6"
+      dynamic-body="mass:0.8;linearDamping:0.3;angularDamping:0.3"></a-entity>
+    
+    <!-- Tasse de café (attrapable) -->
+    <a-entity 
+      id="cube"
+      gltf-model="#coffee-cup-model" 
+      position="0.2 0.85 -0.9" 
+      rotation="0 180 0" 
+      scale="0.5 0.5 0.5"
+      dynamic-body="mass:0.3;linearDamping:0.3;angularDamping:0.3"></a-entity>
+
+    <!-- Curseur hit-test -->
+    <a-ring id="cursor" position="0 0 -1" rotation="-90 0 0" radius-inner="0.05" radius-outer="0.08" color="#00FF00"
+      visible="false"></a-ring>
+
+    <!-- Sol de base -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" visible="false" static-body></a-plane>
+
+  </a-scene>
+
   <script type="module" src="/src/main.js"></script>
-  
 </body>
+
 </html>
