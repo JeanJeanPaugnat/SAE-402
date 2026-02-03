@@ -29,8 +29,14 @@ window.addEventListener('load', () => {
         // Grab state
         let grabbed = false;
         let grabController = null;
+        let grabbedCube = null;
         let velocities = [];
         const surfaces = [];
+        const cubes = [cubeEl]; // Liste de tous les cubes
+        let cubeCount = 1;
+        
+        // État bouton A (pour détecter le press, pas le hold)
+        let buttonAWasPressed = false;
 
         btn.onclick = async () => {
             debugEl.textContent = 'Démarrage...';
@@ -106,16 +112,16 @@ window.addEventListener('load', () => {
             }
 
             // Cube suit le controller
-            if (grabbed && grabController) {
+            if (grabbed && grabController && grabbedCube) {
                 try {
                     const pos = new THREE.Vector3();
                     grabController.getWorldPosition(pos);
 
                     if (isFinite(pos.x) && isFinite(pos.y) && isFinite(pos.z)) {
-                        cubeEl.object3D.position.set(pos.x, pos.y, pos.z);
+                        grabbedCube.object3D.position.set(pos.x, pos.y, pos.z);
 
-                        if (cubeEl.body) {
-                            cubeEl.body.position.set(pos.x, pos.y, pos.z);
+                        if (grabbedCube.body) {
+                            grabbedCube.body.position.set(pos.x, pos.y, pos.z);
                         }
 
                         velocities.push({ x: pos.x, y: pos.y, z: pos.z, t: performance.now() });
@@ -123,29 +129,105 @@ window.addEventListener('load', () => {
                     }
                 } catch (e) { }
             }
+            
+            // Vérifier le bouton A pour créer un nouveau cube
+            checkButtonA();
+        }
+        
+        function checkButtonA() {
+            const session = sceneEl.renderer.xr.getSession();
+            if (!session) return;
+            
+            for (const source of session.inputSources) {
+                if (source.gamepad) {
+                    // Bouton A = index 4 sur les manettes Quest
+                    const buttonA = source.gamepad.buttons[4];
+                    if (buttonA && buttonA.pressed && !buttonAWasPressed) {
+                        buttonAWasPressed = true;
+                        spawnCube();
+                    } else if (buttonA && !buttonA.pressed) {
+                        buttonAWasPressed = false;
+                    }
+                }
+            }
+        }
+        
+        function spawnCube() {
+            cubeCount++;
+            
+            // Position devant la caméra
+            const cam = document.getElementById('cam');
+            const camPos = cam.object3D.getWorldPosition(new THREE.Vector3());
+            const camDir = new THREE.Vector3(0, 0, -1);
+            camDir.applyQuaternion(cam.object3D.getWorldQuaternion(new THREE.Quaternion()));
+            
+            const spawnPos = camPos.add(camDir.multiplyScalar(0.7));
+            
+            // Créer un nouveau cube
+            const newCube = document.createElement('a-box');
+            newCube.setAttribute('id', `cube-${cubeCount}`);
+            newCube.setAttribute('position', `${spawnPos.x} ${spawnPos.y} ${spawnPos.z}`);
+            newCube.setAttribute('width', '0.15');
+            newCube.setAttribute('height', '0.15');
+            newCube.setAttribute('depth', '0.15');
+            newCube.setAttribute('color', getRandomColor());
+            newCube.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
+            
+            sceneEl.appendChild(newCube);
+            cubes.push(newCube);
+            
+            debugEl.textContent = `Cube ${cubeCount} créé!`;
+        }
+        
+        function getRandomColor() {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+            return colors[Math.floor(Math.random() * colors.length)];
         }
 
         function grab(controller) {
             if (grabbed) return;
 
+            // Trouver le cube le plus proche du controller
+            const controllerPos = new THREE.Vector3();
+            controller.getWorldPosition(controllerPos);
+            
+            let closestCube = null;
+            let closestDist = 0.3; // Distance max pour attraper (30cm)
+            
+            for (const cube of cubes) {
+                if (!cube || !cube.object3D) continue;
+                const cubePos = cube.object3D.getWorldPosition(new THREE.Vector3());
+                const dist = controllerPos.distanceTo(cubePos);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestCube = cube;
+                }
+            }
+            
+            if (!closestCube) {
+                debugEl.textContent = 'Aucun cube à portée';
+                return;
+            }
+
             debugEl.textContent = 'GRAB!';
 
             grabbed = true;
             grabController = controller;
+            grabbedCube = closestCube;
             velocities = [];
-            cubeEl.setAttribute('color', '#FFD700');
+            grabbedCube.setAttribute('color', '#FFD700');
 
-            if (cubeEl.body) {
-                cubeEl.body.mass = 0;
-                cubeEl.body.type = 2;
-                cubeEl.body.updateMassProperties();
+            if (grabbedCube.body) {
+                grabbedCube.body.mass = 0;
+                grabbedCube.body.type = 2;
+                grabbedCube.body.updateMassProperties();
             }
 
             debugEl.textContent = 'ATTRAPÉ!';
         }
 
         function release() {
-            if (!grabbed) return;
+            if (!grabbed || !grabbedCube) return;
 
             let vx = 0, vy = 0, vz = 0;
             if (velocities.length >= 2) {
@@ -159,20 +241,22 @@ window.addEventListener('load', () => {
                 }
             }
 
-            cubeEl.setAttribute('color', '#8A2BE2');
+            // Restaurer une couleur aléatoire
+            grabbedCube.setAttribute('color', getRandomColor());
 
-            if (cubeEl.body) {
-                const p = cubeEl.object3D.position;
-                cubeEl.body.position.set(p.x, p.y, p.z);
-                cubeEl.body.type = 1;
-                cubeEl.body.mass = 0.5;
-                cubeEl.body.updateMassProperties();
-                cubeEl.body.velocity.set(vx, vy, vz);
-                cubeEl.body.wakeUp();
+            if (grabbedCube.body) {
+                const p = grabbedCube.object3D.position;
+                grabbedCube.body.position.set(p.x, p.y, p.z);
+                grabbedCube.body.type = 1;
+                grabbedCube.body.mass = 0.5;
+                grabbedCube.body.updateMassProperties();
+                grabbedCube.body.velocity.set(vx, vy, vz);
+                grabbedCube.body.wakeUp();
             }
 
             grabbed = false;
             grabController = null;
+            grabbedCube = null;
             debugEl.textContent = 'Lâché!';
         }
 
