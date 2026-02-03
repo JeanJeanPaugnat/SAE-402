@@ -437,12 +437,10 @@ window.addEventListener('load', () => {
             grabbables.forEach(obj => {
                 if (!obj.object3D.visible) return;
                 
-                const objPos = new THRE4  // Encore plus large
-            box.setAttribute('height', '0.1');  // Plus épais
-            box.setAttribute('depth', '4');  // Encore plus profond
-            box.setAttribute('color', '#00FF00');
-            box.setAttribute('opacity', '0.3');
-            box.setAttribute('visible', 'true');  // VISIBLE pour debug AR
+                // CORRECTION : On crée proprement le vecteur
+                const objPos = new THREE.Vector3();
+                obj.object3D.getWorldPosition(objPos); // On récupère la vraie position
+                
                 const distX = Math.abs(objPos.x - comptoirPos.x);
                 const distZ = Math.abs(objPos.z - comptoirPos.z);
                 const distY = objPos.y - comptoirPos.y;
