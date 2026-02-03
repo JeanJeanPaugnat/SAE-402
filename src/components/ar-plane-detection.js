@@ -83,6 +83,7 @@ AFRAME.registerComponent('ar-plane-detection', {
             depth = Math.max(0.1, maxZ - minZ);
         }
 
+
         // Géométrie box fine
         entity.setAttribute('geometry', {
             primitive: 'box',
