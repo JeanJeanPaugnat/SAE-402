@@ -35,8 +35,10 @@ window.addEventListener('load', () => {
         const cubes = [cubeEl]; // Liste de tous les cubes
         let cubeCount = 1;
         
-        // État bouton A (pour détecter le press, pas le hold)
-        let buttonAWasPressed = false;
+        // Référence à la poubelle et au bouton spawn
+        const trashcanEl = document.getElementById('trashcan');
+        const spawnBtnEl = document.getElementById('spawn-btn');
+        const spawnBtnBox = spawnBtnEl ? spawnBtnEl.querySelector('a-box') : null;
 
         btn.onclick = async () => {
             debugEl.textContent = 'Démarrage...';
@@ -130,26 +132,8 @@ window.addEventListener('load', () => {
                 } catch (e) { }
             }
             
-            // Vérifier le bouton A pour créer un nouveau cube
-            checkButtonA();
-        }
-        
-        function checkButtonA() {
-            const session = sceneEl.renderer.xr.getSession();
-            if (!session) return;
-            
-            for (const source of session.inputSources) {
-                if (source.gamepad) {
-                    // Bouton A = index 4 sur les manettes Quest
-                    const buttonA = source.gamepad.buttons[4];
-                    if (buttonA && buttonA.pressed && !buttonAWasPressed) {
-                        buttonAWasPressed = true;
-                        spawnCube();
-                    } else if (buttonA && !buttonA.pressed) {
-                        buttonAWasPressed = false;
-                    }
-                }
-            }
+            // Vérifier si des cubes sont dans la poubelle
+            checkTrashcan();
         }
         
         function spawnCube() {
@@ -163,34 +147,70 @@ window.addEventListener('load', () => {
             
             const spawnPos = camPos.add(camDir.multiplyScalar(0.7));
             
-            // Créer un nouveau cube
-            const newCube = document.createElement('a-box');
-            newCube.setAttribute('id', `cube-${cubeCount}`);
-            newCube.setAttribute('position', `${spawnPos.x} ${spawnPos.y} ${spawnPos.z}`);
-            newCube.setAttribute('width', '0.15');
-            newCube.setAttribute('height', '0.15');
-            newCube.setAttribute('depth', '0.15');
-            newCube.setAttribute('color', getRandomColor());
-            newCube.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
+            // Créer une nouvelle tasse de café
+            const newCup = document.createElement('a-entity');
+            newCup.setAttribute('id', `cup-${cubeCount}`);
+            newCup.setAttribute('position', `${spawnPos.x} ${spawnPos.y} ${spawnPos.z}`);
+            newCup.setAttribute('gltf-model', '/Coffee cup.glb');
+            newCup.setAttribute('scale', '0.1 0.1 0.1');
+            newCup.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3;shape:box');
             
-            sceneEl.appendChild(newCube);
-            cubes.push(newCube);
+            sceneEl.appendChild(newCup);
+            cubes.push(newCup);
             
-            debugEl.textContent = `Cube ${cubeCount} créé!`;
+            debugEl.textContent = `Tasse ${cubeCount} créée!`;
         }
         
         function getRandomColor() {
-            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F'];
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F', '#8A2BE2'];
             return colors[Math.floor(Math.random() * colors.length)];
+        }
+        
+        function checkTrashcan() {
+            if (!trashcanEl) return;
+            
+            const trashPos = trashcanEl.object3D.getWorldPosition(new THREE.Vector3());
+            const trashRadius = 0.5; // Rayon de détection de la poubelle (x2)
+            
+            // Parcourir les cubes et supprimer ceux dans la poubelle
+            for (let i = cubes.length - 1; i >= 0; i--) {
+                const cube = cubes[i];
+                if (!cube || !cube.object3D) continue;
+                
+                // Ne pas supprimer si on tient ce cube
+                if (cube === grabbedCube) continue;
+                
+                const cubePos = cube.object3D.getWorldPosition(new THREE.Vector3());
+                const dist = cubePos.distanceTo(trashPos);
+                
+                if (dist < trashRadius) {
+                    // Supprimer le cube
+                    cube.parentNode.removeChild(cube);
+                    cubes.splice(i, 1);
+                    debugEl.textContent = `Cube supprimé! (${cubes.length} restants)`;
+                }
+            }
         }
 
         function grab(controller) {
             if (grabbed) return;
 
-            // Trouver le cube le plus proche du controller
             const controllerPos = new THREE.Vector3();
             controller.getWorldPosition(controllerPos);
             
+            // Vérifier si on touche le bouton spawn d'abord
+            if (spawnBtnEl) {
+                const btnPos = spawnBtnEl.object3D.getWorldPosition(new THREE.Vector3());
+                const distToBtn = controllerPos.distanceTo(btnPos);
+                if (distToBtn < 0.25) {
+                    // On touche le bouton, spawn un cube !
+                    spawnCube();
+                    debugEl.textContent = 'Bouton pressé!';
+                    return;
+                }
+            }
+
+            // Trouver le cube le plus proche du controller
             let closestCube = null;
             let closestDist = 0.3; // Distance max pour attraper (30cm)
             
@@ -241,7 +261,6 @@ window.addEventListener('load', () => {
                 }
             }
 
-            // Restaurer une couleur aléatoire
             grabbedCube.setAttribute('color', getRandomColor());
 
             if (grabbedCube.body) {

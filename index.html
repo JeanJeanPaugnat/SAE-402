@@ -26,9 +26,18 @@
       <a-camera id="cam" position="0 1.6 0"></a-camera>
     </a-entity>
 
-    <!-- CUBE -->
-    <a-box id="cube" position="0 0.5 -0.7" width="0.15" height="0.15" depth="0.15" color="#8A2BE2"
-      dynamic-body="mass:0.5;linearDamping:0.3;angularDamping:0.3"></a-box>
+    <!-- TASSE DE CAFE -->
+    <a-entity id="cube" position="0 0.5 -0.7" gltf-model="/Coffee cup.glb" scale="0.1 0.1 0.1"
+      dynamic-body="mass:0.5;linearDamping:0.3;angularDamping:0.3;shape:box"></a-entity>
+
+    <!-- POUBELLE -->
+    <a-entity id="trashcan" position="0.5 0 -1" gltf-model="/Trashcan Small.glb" scale="0.6 0.6 0.6"></a-entity>
+
+    <!-- BOUTON SPAWN TASSE (3D cliquable) -->
+    <a-entity id="spawn-btn" position="-0.5 1 -1" class="clickable">
+      <a-box width="0.2" height="0.2" depth="0.05" color="#6F4E37" class="clickable"></a-box>
+      <a-text value="+ TASSE" position="0 0 0.03" align="center" color="white" width="1"></a-text>
+    </a-entity>
 
     <!-- Curseur hit-test -->
     <a-ring id="cursor" position="0 0 -1" rotation="-90 0 0" radius-inner="0.05" radius-outer="0.08" color="#00FF00"
