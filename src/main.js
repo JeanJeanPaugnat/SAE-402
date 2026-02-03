@@ -2,6 +2,12 @@ import 'aframe' ;
 import 'aframe-extras' ;
 import 'aframe-physics-system';
 
+// Import des composants AR personnalisés
+import './components/ar-plane-detection.js';
+import './components/xr-object-placer.js';
+import './components/xr-hit-test.js';
+import './components/hand-grab.js';
+
 /* global THREE */
 
 console.log('☕ SAE 402 - Chargement...');
@@ -12,26 +18,29 @@ window.addEventListener('load', () => {
         const surfacesEl = document.getElementById('surfaces');
         const btn = document.getElementById('btn');
         const sceneEl = document.getElementById('scene');
-        const cubeEl = document.getElementById('cube');
         const cursorEl = document.getElementById('cursor');
-        const rulesPopup = document.getElementById('rules-popup');
+        const rulesPanel = document.getElementById('rules-panel');
+        const rulesPanelHud = document.getElementById('rules-panel-hud'); // Nouveau panneau dans la caméra
         const rulesOkBtn = document.getElementById('rules-ok-btn');
-        const clientsPopup = document.getElementById('clients-popup');
+        const rulesOkBtnHud = document.getElementById('rules-ok-btn-hud'); // Nouveau bouton
+        const clientsPanel = document.getElementById('clients-panel');
+        const clientsPanelHud = document.getElementById('clients-panel-hud'); // Nouveau panneau clients HUD
         const clientsOkBtn = document.getElementById('clients-ok-btn');
+        const clientsOkBtnHud = document.getElementById('clients-ok-btn-hud'); // Nouveau bouton clients HUD
         const coffeeMachine = document.querySelector('[data-machine]');
         const coffeeSound = document.getElementById('coffee-sound');
         const cupSound = document.getElementById('cup-sound');
 
-        let rulesShown = localStorage.getItem('coffee-quest-rules-shown') === 'true';
+        let rulesShown = false; // FORCER à false pour toujours afficher le panneau
+        // let rulesShown = localStorage.getItem('coffee-quest-rules-shown') === 'true';
         let objectsPlaced = 0;
         let setupComplete = false;
         let previousButtonStates = [{ b: false }, { b: false }];
         let isMakingCoffee = false;
 
-        if (!sceneEl || !cubeEl) {
-            debugEl.textContent = 'Éléments manquants!';
-            return;
-        }
+        console.log('Règles déjà vues :', rulesShown);
+        console.log('Panneau de règles trouvé :', rulesPanel);
+        console.log('Panneau de clients trouvé :', clientsPanel);
 
         debugEl.textContent = 'Prêt!';
 
@@ -42,8 +51,10 @@ window.addEventListener('load', () => {
         // Grab state
         let grabbed = false;
         let grabController = null;
+        let grabbedObject = null;
         let velocities = [];
         const surfaces = [];
+        let controllerRays = [];
 
         btn.onclick = async () => {
             debugEl.textContent = 'Démarrage...';
@@ -51,7 +62,7 @@ window.addEventListener('load', () => {
             try {
                 xrSession = await navigator.xr.requestSession('immersive-ar', {
                     requiredFeatures: ['local-floor'],
-                    optionalFeatures: ['hit-test', 'dom-overlay'],
+                    optionalFeatures: ['hit-test', 'dom-overlay', 'plane-detection'],
                     domOverlay: { root: document.getElementById('overlay') }
                 });
 
@@ -64,29 +75,64 @@ window.addEventListener('load', () => {
                 sceneEl.object3D.add(ctrl0);
                 sceneEl.object3D.add(ctrl1);
 
-                ctrl0.addEventListener('selectstart', () => grab(ctrl0));
+                // Créer des rayons visuels pour les contrôleurs
+                const rayGeometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    new THREE.Vector3(0, 0, -2)
+                ]);
+                const rayMaterial = new THREE.LineBasicMaterial({ color: 0x00ffff });
+                
+                const ray0 = new THREE.Line(rayGeometry, rayMaterial);
+                const ray1 = new THREE.Line(rayGeometry, rayMaterial);
+                
+                // Masquer les rayons par défaut
+                ray0.visible = false;
+                ray1.visible = false;
+                
+                ctrl0.add(ray0);
+                ctrl1.add(ray1);
+                
+                controllerRays = [ray0, ray1];
+
+                // Gestion des événements
+                ctrl0.addEventListener('selectstart', (e) => handleSelectStart(ctrl0));
                 ctrl0.addEventListener('selectend', release);
-                ctrl1.addEventListener('selectstart', () => grab(ctrl1));
+                ctrl1.addEventListener('selectstart', (e) => handleSelectStart(ctrl1));
                 ctrl1.addEventListener('selectend', release);
 
                 debugEl.textContent = 'AR OK!';
 
-                // Afficher les règles si première fois
+                console.log('Session AR démarrée, rulesShown =', rulesShown);
+
+                // Afficher le panneau de règles immédiatement si première fois
                 if (!rulesShown) {
-                    setTimeout(() => {
-                        rulesPopup.style.display = 'block';
-                    }, 1000);
+                    console.log('Affichage du panneau de règles HUD...');
+                    
+                    // Utiliser le panneau HUD directement dans la caméra
+                    if (rulesPanelHud) {
+                        rulesPanelHud.setAttribute('visible', 'true');
+                        console.log('Panneau HUD affiché');
+                        console.log('rulesPanelHud.object3D.visible:', rulesPanelHud.object3D?.visible);
+                    } else {
+                        console.error('ERREUR: rulesPanelHud introuvable!');
+                    }
+                    
+                    controllerRays.forEach(ray => ray.visible = true);
+                    debugEl.textContent = 'Lisez les règles...';
+                } else {
+                    console.log('Règles déjà vues, affichage direct des objets');
+                    // Si règles déjà vues, afficher directement les objets
+                    showGameObjects();
                 }
 
-                // Setup hit-test après délai
+                // Setup hit-test
                 setTimeout(async () => {
                     try {
                         xrRefSpace = sceneEl.renderer.xr.getReferenceSpace();
-                        const viewer = await xrSession.requestReferenceSpace('viewer');
-                        hitTestSource = await xrSession.requestHitTestSource({ space: viewer });
-                        debugEl.textContent = 'Hit-test OK!';
+                        hitTestSource = await xrSession.requestHitTestSource({ space: xrRefSpace });
+                        debugEl.textContent = 'AR actif - Détection des surfaces...';
                     } catch (e) {
-                        debugEl.textContent = 'Pas de hit-test';
+                        debugEl.textContent = 'AR actif - Mode sans hit-test';
                     }
 
                     // Démarrer boucle XR
@@ -98,19 +144,97 @@ window.addEventListener('load', () => {
             }
         };
 
-        // Bouton OK du popup de règles
-        rulesOkBtn.onclick = () => {
-            rulesPopup.style.display = 'none';
-            localStorage.setItem('coffee-quest-rules-shown', 'true');
-            rulesShown = true;
-            debugEl.textContent = 'Placez les objets sur la table...';
-        };
+        function showGameObjects() {
+            // Afficher tous les objets du jeu
+            const grabbables = document.querySelectorAll('.grabbable');
+            grabbables.forEach(obj => obj.setAttribute('visible', 'true'));
+            
+            const comptoir = document.getElementById('comptoir');
+            if (comptoir) comptoir.setAttribute('visible', 'true');
+            
+            debugEl.textContent = 'Attrapez et posez les objets sur toute surface détectée...';
+        }
 
-        // Bouton OK du popup clients
-        clientsOkBtn.onclick = () => {
-            clientsPopup.style.display = 'none';
-            debugEl.textContent = 'En attente des clients...';
-        };
+        function handleSelectStart(controller) {
+            // Si un panneau est visible, vérifier le clic sur le bouton
+            if ((rulesPanel && rulesPanel.object3D.visible) || (rulesPanelHud && rulesPanelHud.object3D.visible) || (clientsPanel && clientsPanel.object3D.visible) || (clientsPanelHud && clientsPanelHud.object3D.visible)) {
+                checkButtonClick(controller);
+            } else {
+                // Sinon, faire le grab normal
+                grab(controller);
+            }
+        }
+
+        function checkButtonClick(controller) {
+            const raycaster = new THREE.Raycaster();
+            const tempMatrix = new THREE.Matrix4();
+            tempMatrix.identity().extractRotation(controller.matrixWorld);
+            
+            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+            
+            // Vérifier le bouton des règles (ancien panneau)
+            if (rulesPanel && rulesPanel.object3D.visible && rulesOkBtn && rulesOkBtn.object3D) {
+                const btnPos = new THREE.Vector3();
+                rulesOkBtn.object3D.getWorldPosition(btnPos);
+                const distance = raycaster.ray.distanceToPoint(btnPos);
+                if (distance < 0.15) {
+                    console.log('Bouton OK des règles cliqué');
+                    rulesPanel.setAttribute('visible', 'false');
+                    controllerRays.forEach(ray => ray.visible = false);
+                    localStorage.setItem('coffee-quest-rules-shown', 'true');
+                    rulesShown = true;
+                    sceneEl.appendChild(rulesPanel);
+                    showGameObjects();
+                    return;
+                }
+            }
+            
+            // Vérifier le bouton des règles HUD (nouveau panneau)
+            if (rulesPanelHud && rulesPanelHud.object3D.visible && rulesOkBtnHud && rulesOkBtnHud.object3D) {
+                const btnPos = new THREE.Vector3();
+                rulesOkBtnHud.object3D.getWorldPosition(btnPos);
+                const distance = raycaster.ray.distanceToPoint(btnPos);
+                if (distance < 0.15) {
+                    console.log('Bouton OK HUD des règles cliqué');
+                    rulesPanelHud.setAttribute('visible', 'false');
+                    controllerRays.forEach(ray => ray.visible = false);
+                    localStorage.setItem('coffee-quest-rules-shown', 'true');
+                    rulesShown = true;
+                    showGameObjects();
+                    return;
+                }
+            }
+            
+            // Vérifier le bouton des clients
+            if (clientsPanel && clientsPanel.object3D.visible && clientsOkBtn && clientsOkBtn.object3D) {
+                const btnPos = new THREE.Vector3();
+                clientsOkBtn.object3D.getWorldPosition(btnPos);
+                const distance = raycaster.ray.distanceToPoint(btnPos);
+                if (distance < 0.15) {
+                    console.log('Bouton OK des clients cliqué');
+                    clientsPanel.setAttribute('visible', 'false');
+                    controllerRays.forEach(ray => ray.visible = false);
+                    sceneEl.appendChild(clientsPanel);
+                    debugEl.textContent = 'En attente des clients...';
+                    return;
+                }
+            }
+            
+            // Vérifier le bouton des clients HUD
+            if (clientsPanelHud && clientsPanelHud.object3D.visible && clientsOkBtnHud && clientsOkBtnHud.object3D) {
+                const btnPos = new THREE.Vector3();
+                clientsOkBtnHud.object3D.getWorldPosition(btnPos);
+                const distance = raycaster.ray.distanceToPoint(btnPos);
+                if (distance < 0.15) {
+                    console.log('Bouton OK HUD des clients cliqué');
+                    clientsPanelHud.setAttribute('visible', 'false');
+                    controllerRays.forEach(ray => ray.visible = false);
+                    debugEl.textContent = 'En attente des clients...';
+                    return;
+                }
+            }
+        }
 
         function xrLoop(time, frame) {
             if (!xrSession) return;
@@ -121,23 +245,15 @@ window.addEventListener('load', () => {
                 return;
             }
 
-            // Hit-test
-            if (hitTestSource) {
-                try {
-                    const hits = frame.getHitTestResults(hitTestSource);
-                    if (hits.length > 0) {
-                        const pose = hits[0].getPose(xrRefSpace);
-                        if (pose) {
-                            const p = pose.transform.position;
-                            cursorEl.object3D.visible = true;
-                            cursorEl.object3D.position.set(p.x, p.y, p.z);
-                            addSurface(p.x, p.y, p.z);
-                        }
-                    } else {
-                        cursorEl.object3D.visible = false;
-                    }
-                } catch (e) { }
-            }
+            // Gérer la visibilité des rayons
+            const panelVisible = (rulesPanel && rulesPanel.object3D.visible) || 
+                                (rulesPanelHud && rulesPanelHud.object3D.visible) || 
+                                (clientsPanel && clientsPanel.object3D.visible) ||
+                                (clientsPanelHud && clientsPanelHud.object3D.visible);
+            controllerRays.forEach(ray => ray.visible = panelVisible);
+
+            // Les surfaces sont maintenant détectées automatiquement par ar-plane-detection
+            // Plus besoin de créer manuellement les surfaces, le composant s'en occupe
 
             // Vérifier le bouton B si le setup est complet
             if (setupComplete && !isMakingCoffee && coffeeMachine) {
@@ -163,16 +279,16 @@ window.addEventListener('load', () => {
             }
 
             // Cube suit le controller
-            if (grabbed && grabController) {
+            if (grabbed && grabController && grabbedObject) {
                 try {
                     const pos = new THREE.Vector3();
                     grabController.getWorldPosition(pos);
 
                     if (isFinite(pos.x) && isFinite(pos.y) && isFinite(pos.z)) {
-                        cubeEl.object3D.position.set(pos.x, pos.y, pos.z);
+                        grabbedObject.object3D.position.set(pos.x, pos.y, pos.z);
 
-                        if (cubeEl.body) {
-                            cubeEl.body.position.set(pos.x, pos.y, pos.z);
+                        if (grabbedObject.body) {
+                            grabbedObject.body.position.set(pos.x, pos.y, pos.z);
                         }
 
                         velocities.push({ x: pos.x, y: pos.y, z: pos.z, t: performance.now() });
@@ -185,24 +301,46 @@ window.addEventListener('load', () => {
         function grab(controller) {
             if (grabbed) return;
 
+            // Trouver l'objet attrapable le plus proche
+            const grabbables = document.querySelectorAll('.grabbable');
+            let closestObj = null;
+            let minDist = 0.5; // Distance max pour attraper (50cm pour plus de confort)
+
+            const controllerPos = new THREE.Vector3();
+            controller.getWorldPosition(controllerPos);
+
+            grabbables.forEach(obj => {
+                if (!obj.object3D.visible) return;
+                const objPos = new THREE.Vector3();
+                obj.object3D.getWorldPosition(objPos);
+                const dist = controllerPos.distanceTo(objPos);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestObj = obj;
+                }
+            });
+
+            if (!closestObj) return;
+
             debugEl.textContent = 'GRAB!';
 
             grabbed = true;
             grabController = controller;
+            grabbedObject = closestObj;
             velocities = [];
-            cubeEl.setAttribute('color', '#FFD700');
 
-            if (cubeEl.body) {
-                cubeEl.body.mass = 0;
-                cubeEl.body.type = 2;
-                cubeEl.body.updateMassProperties();
+            if (grabbedObject.body) {
+                grabbedObject.body.mass = 0;
+                grabbedObject.body.type = 2; // Kinematic
+                grabbedObject.body.updateMassProperties();
+                grabbedObject.body.sleep(); // Endormir le body pour éviter les mouvements
             }
 
             debugEl.textContent = 'ATTRAPÉ!';
         }
 
         function release() {
-            if (!grabbed) return;
+            if (!grabbed || !grabbedObject) return;
 
             let vx = 0, vy = 0, vz = 0;
             if (velocities.length >= 2) {
@@ -216,20 +354,52 @@ window.addEventListener('load', () => {
                 }
             }
 
-            cubeEl.setAttribute('color', '#8A2BE2');
-
-            if (cubeEl.body) {
-                const p = cubeEl.object3D.position;
-                cubeEl.body.position.set(p.x, p.y, p.z);
-                cubeEl.body.type = 1;
-                cubeEl.body.mass = 0.5;
-                cubeEl.body.updateMassProperties();
-                cubeEl.body.velocity.set(vx, vy, vz);
-                cubeEl.body.wakeUp();
+            if (grabbedObject.body) {
+                const p = grabbedObject.object3D.position;
+                grabbedObject.body.position.set(p.x, p.y, p.z);
+                grabbedObject.body.type = 1; // Dynamic
+                grabbedObject.body.mass = 0.5;
+                grabbedObject.body.updateMassProperties();
+                
+                // Réduire la vitesse si elle est trop faible (objet posé doucement)
+                const speed = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                if (speed < 2) {
+                    // Objet posé doucement, vitesse quasi-nulle pour éviter qu'il tombe
+                    vx *= 0.05;
+                    vy *= 0.05;
+                    vz *= 0.05;
+                    
+                    // Stabiliser l'objet immédiatement pour qu'il reste en place
+                    setTimeout(() => {
+                        if (grabbedObject && grabbedObject.body) {
+                            const currentSpeed = Math.sqrt(
+                                grabbedObject.body.velocity.x ** 2 +
+                                grabbedObject.body.velocity.y ** 2 +
+                                grabbedObject.body.velocity.z ** 2
+                            );
+                            // Si l'objet bouge encore très lentement, le figer complètement
+                            if (currentSpeed < 0.5) {
+                                grabbedObject.body.velocity.set(0, 0, 0);
+                                grabbedObject.body.angularVelocity.set(0, 0, 0);
+                                grabbedObject.body.sleep();
+                            }
+                        }
+                    }, 200);
+                } else {
+                    // Objet lancé, réduire un peu la vitesse
+                    vx *= 0.5;
+                    vy *= 0.5;
+                    vz *= 0.5;
+                }
+                
+                grabbedObject.body.velocity.set(vx, vy, vz);
+                grabbedObject.body.angularVelocity.set(0, 0, 0); // Pas de rotation
+                grabbedObject.body.wakeUp();
             }
 
             grabbed = false;
             grabController = null;
+            grabbedObject = null;
             debugEl.textContent = 'Lâché!';
 
             // Vérifier si l'objet a été placé (vitesse faible = posé)
@@ -242,31 +412,54 @@ window.addEventListener('load', () => {
                 if (objectsPlaced >= 2) {
                     setupComplete = true;
                     setTimeout(() => {
-                        clientsPopup.style.display = 'block';
+                        // Afficher le panneau clients HUD
+                        if (clientsPanelHud) {
+                            clientsPanelHud.setAttribute('visible', 'true');
+                            console.log('Panneau clients HUD affiché');
+                        }
+                        controllerRays.forEach(ray => ray.visible = true);
                     }, 500);
                 }
             }
+
+            // Vérifier si le comptoir est vide
+            checkCounterEmpty();
         }
 
-        function addSurface(x, y, z) {
-            for (const s of surfaces) {
-                if (Math.abs(s.x - x) < 0.1 && Math.abs(s.y - y) < 0.1 && Math.abs(s.z - z) < 0.1) return;
+        function checkCounterEmpty() {
+            const comptoir = document.getElementById('comptoir');
+            if (!comptoir || !comptoir.object3D.visible) return;
+
+            const comptoirPos = comptoir.object3D.position;
+            const grabbables = document.querySelectorAll('.grabbable');
+            
+            let objectsOnCounter = 0;
+            grabbables.forEach(obj => {
+                if (!obj.object3D.visible) return;
+                
+                const objPos = new THRE4  // Encore plus large
+            box.setAttribute('height', '0.1');  // Plus épais
+            box.setAttribute('depth', '4');  // Encore plus profond
+            box.setAttribute('color', '#00FF00');
+            box.setAttribute('opacity', '0.3');
+            box.setAttribute('visible', 'true');  // VISIBLE pour debug AR
+                const distX = Math.abs(objPos.x - comptoirPos.x);
+                const distZ = Math.abs(objPos.z - comptoirPos.z);
+                const distY = objPos.y - comptoirPos.y;
+                
+                if (distX < 1 && distZ < 0.4 && distY > 0 && distY < 0.5) {
+                    objectsOnCounter++;
+                }
+            });
+
+            // Masquer seulement si AUCUN objet n'est sur le comptoir
+            if (objectsOnCounter === 0) {
+                comptoir.setAttribute('visible', 'false');
             }
-
-            const box = document.createElement('a-box');
-            box.setAttribute('position', `${x} ${y} ${z}`);
-            box.setAttribute('width', '0.2');
-            box.setAttribute('height', '0.01');
-            box.setAttribute('depth', '0.2');
-            box.setAttribute('visible', 'false');
-            box.setAttribute('static-body', '');
-            sceneEl.appendChild(box);
-
-            surfaces.push({ x, y, z });
-            surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
-
-            if (surfaces.length > 200) surfaces.shift();
         }
+
+        // Les surfaces sont maintenant gérées automatiquement par le composant ar-plane-detection
+        // Plus besoin de la fonction addSurface
 
         function isPointingAtMachine(controller) {
             const raycaster = new THREE.Raycaster();
@@ -296,8 +489,9 @@ window.addEventListener('load', () => {
                 newCup.setAttribute('gltf-model', '#coffee-cup-model');
                 newCup.setAttribute('position', `${machinePos.x + 0.3} ${machinePos.y} ${machinePos.z}`);
                 newCup.setAttribute('rotation', '0 180 0');
-                newCup.setAttribute('scale', '0.5 0.5 0.5');
-                newCup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.3;angularDamping:0.3');
+                newCup.setAttribute('scale', '0.15 0.15 0.15');
+                newCup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.5;angularDamping:0.5');
+                newCup.setAttribute('class', 'grabbable');
                 
                 sceneEl.appendChild(newCup);
                 

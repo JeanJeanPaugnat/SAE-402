@@ -103,8 +103,8 @@ AFRAME.registerComponent('ar-plane-detection', {
             entity.setAttribute('visible', 'false');
         }
 
-        // PHYSIQUE
-        entity.setAttribute('static-body', '');
+        // PHYSIQUE - Surface statique avec friction élevée
+        entity.setAttribute('static-body', 'friction: 1; restitution: 0');
 
         this.el.sceneEl.appendChild(entity);
         this.planes.set(id, entity);
