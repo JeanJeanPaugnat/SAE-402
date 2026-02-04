@@ -22,7 +22,7 @@
     vr-mode-ui="enabled:false" 
     renderer="alpha:true;antialias:true"
     background="color:transparent"
-    ar-plane-detection="visualize: false"
+    ar-plane-detection="visualize: true"
     xr-object-placer="model: #coffee-cup-model; scale: 0.15"
     xr-hit-test>
 
@@ -114,11 +114,19 @@
             wrap-count="35">
           </a-text>
           <a-text value="Les premiers clients vont arriver..." 
-            position="0 -0.05 0.01" 
+            position="0 0 0.01" 
             width="1.1" 
             color="#FFFFFF" 
             align="center" 
             wrap-count="35">
+          </a-text>
+          <a-text value="Astuce : Pointez la machine et appuyez
+sur B pour lancer un cafe !" 
+            position="0 -0.25 0.01" 
+            width="1" 
+            color="#FFD700" 
+            align="center" 
+            wrap-count="40">
           </a-text>
           <!-- Bouton OK -->
           <a-box id="clients-ok-btn-hud" 
@@ -215,11 +223,19 @@
         wrap-count="35">
       </a-text>
       <a-text value="Les premiers clients vont arriver..." 
-        position="0 -0.05 0.01" 
+        position="0 0 0.01" 
         width="1.1" 
         color="#FFFFFF" 
         align="center" 
         wrap-count="35">
+      </a-text>
+      <a-text value="Astuce : Pointez la machine et appuyez
+sur B pour lancer un cafe !" 
+        position="0 -0.25 0.01" 
+        width="1" 
+        color="#FFD700" 
+        align="center" 
+        wrap-count="40">
       </a-text>
       <!-- Bouton OK -->
       <a-box id="clients-ok-btn" 
@@ -263,7 +279,7 @@
       position="-0.3 1.0 -0.8" 
       rotation="0 180 0" 
       scale="0.6 0.6 0.6"
-      dynamic-body="mass:1.5;linearDamping:0.9;angularDamping:0.9;friction:1"></a-entity>
+      dynamic-body="shape: box; halfExtents: 0.12 0.18 0.12; mass: 1.5; linearDamping: 0.95; angularDamping: 0.95; restitution: 0; friction: 1"></a-entity>
     
     <!-- Tasse de café (attrapable) -->
     <a-entity 
@@ -274,7 +290,7 @@
       position="0.2 0.95 -0.7" 
       rotation="0 180 0" 
       scale="0.15 0.15 0.15"
-      dynamic-body="mass:0.4;linearDamping:0.9;angularDamping:0.9;friction:1"></a-entity>
+      dynamic-body="shape: box; halfExtents: 0.03 0.04 0.03; mass: 0.2; linearDamping: 0.9; angularDamping: 0.9; restitution: 0; friction: 1"></a-entity>
 
     <!-- Curseur hit-test (masqué) -->
     <a-ring id="cursor" position="0 0 -1" rotation="-90 0 0" radius-inner="0.05" radius-outer="0.08" color="#00FF00"

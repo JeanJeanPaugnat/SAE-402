@@ -75,6 +75,33 @@ window.addEventListener('load', () => {
                 sceneEl.object3D.add(ctrl0);
                 sceneEl.object3D.add(ctrl1);
 
+                // Créer des mains visuelles pour les contrôleurs
+                const handGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+                const handMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xFFDBB5, // Couleur chair
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                
+                const hand0 = new THREE.Mesh(handGeometry, handMaterial);
+                const hand1 = new THREE.Mesh(handGeometry, handMaterial);
+                
+                // Ajouter un doigt pointeur pour plus de réalisme
+                const fingerGeometry = new THREE.CylinderGeometry(0.01, 0.01, 0.08, 8);
+                const finger0 = new THREE.Mesh(fingerGeometry, handMaterial);
+                const finger1 = new THREE.Mesh(fingerGeometry, handMaterial);
+                
+                finger0.rotation.x = Math.PI / 2;
+                finger0.position.z = -0.06;
+                finger1.rotation.x = Math.PI / 2;
+                finger1.position.z = -0.06;
+                
+                hand0.add(finger0);
+                hand1.add(finger1);
+                
+                ctrl0.add(hand0);
+                ctrl1.add(hand1);
+
                 // Créer des rayons visuels pour les contrôleurs
                 const rayGeometry = new THREE.BufferGeometry().setFromPoints([
                     new THREE.Vector3(0, 0, 0),
@@ -358,42 +385,12 @@ window.addEventListener('load', () => {
                 const p = grabbedObject.object3D.position;
                 grabbedObject.body.position.set(p.x, p.y, p.z);
                 grabbedObject.body.type = 1; // Dynamic
-                grabbedObject.body.mass = 0.5;
+                grabbedObject.body.mass = 0.2;
                 grabbedObject.body.updateMassProperties();
                 
-                // Réduire la vitesse si elle est trop faible (objet posé doucement)
-                const speed = Math.sqrt(vx*vx + vy*vy + vz*vz);
-                if (speed < 2) {
-                    // Objet posé doucement, vitesse quasi-nulle pour éviter qu'il tombe
-                    vx *= 0.05;
-                    vy *= 0.05;
-                    vz *= 0.05;
-                    
-                    // Stabiliser l'objet immédiatement pour qu'il reste en place
-                    setTimeout(() => {
-                        if (grabbedObject && grabbedObject.body) {
-                            const currentSpeed = Math.sqrt(
-                                grabbedObject.body.velocity.x ** 2 +
-                                grabbedObject.body.velocity.y ** 2 +
-                                grabbedObject.body.velocity.z ** 2
-                            );
-                            // Si l'objet bouge encore très lentement, le figer complètement
-                            if (currentSpeed < 0.5) {
-                                grabbedObject.body.velocity.set(0, 0, 0);
-                                grabbedObject.body.angularVelocity.set(0, 0, 0);
-                                grabbedObject.body.sleep();
-                            }
-                        }
-                    }, 200);
-                } else {
-                    // Objet lancé, réduire un peu la vitesse
-                    vx *= 0.5;
-                    vy *= 0.5;
-                    vz *= 0.5;
-                }
-                
-                grabbedObject.body.velocity.set(vx, vy, vz);
-                grabbedObject.body.angularVelocity.set(0, 0, 0); // Pas de rotation
+                // Annuler uniquement les vitesses horizontales et de rotation
+                grabbedObject.body.velocity.set(0, grabbedObject.body.velocity.y, 0);
+                grabbedObject.body.angularVelocity.set(0, 0, 0);
                 grabbedObject.body.wakeUp();
             }
 
@@ -401,6 +398,12 @@ window.addEventListener('load', () => {
             grabController = null;
             grabbedObject = null;
             debugEl.textContent = 'Lâché!';
+            
+            // Supprimer la physique du comptoir virtuel pour éviter les conflits avec les surfaces AR
+            const comptoir = document.getElementById('comptoir');
+            if (comptoir && comptoir.body) {
+                comptoir.removeAttribute('static-body');
+            }
 
             // Vérifier si l'objet a été placé (vitesse faible = posé)
             const speed = Math.sqrt(vx*vx + vy*vy + vz*vz);
@@ -488,7 +491,7 @@ window.addEventListener('load', () => {
                 newCup.setAttribute('position', `${machinePos.x + 0.3} ${machinePos.y} ${machinePos.z}`);
                 newCup.setAttribute('rotation', '0 180 0');
                 newCup.setAttribute('scale', '0.15 0.15 0.15');
-                newCup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.5;angularDamping:0.5');
+                newCup.setAttribute('dynamic-body', 'shape: box; halfExtents: 0.03 0.04 0.03; mass: 0.2; linearDamping: 0.9; angularDamping: 0.9; restitution: 0; friction: 1');
                 newCup.setAttribute('class', 'grabbable');
                 
                 sceneEl.appendChild(newCup);
