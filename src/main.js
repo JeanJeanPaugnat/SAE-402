@@ -38,107 +38,130 @@ window.addEventListener('load', () => {
 
         function createHUDInventory() {
             const menu = document.createElement('a-entity');
+            inventoryEntity = menu; // <--- CRITICAL FIX
+
 
             // Attach to Camera (HUD)
             const cam = document.getElementById('cam');
             if (!cam) return;
 
-            // Position: Down and forward from camera (like a cockpit dashboard)
-            menu.setAttribute('position', '0 -0.15 -0.6');
-            menu.setAttribute('rotation', '-15 0 0'); // Tilted up slightly
-            menu.setAttribute('scale', '0.2 0.2 0.2'); // Smaller scale for close interactions
+            // Position: Slightly lower and further away for better visibility
+            menu.setAttribute('position', '0 -0.25 -0.8');
+            menu.setAttribute('rotation', '-20 0 0'); // Tilted up to face eyes
+            menu.setAttribute('scale', '0.5 0.5 0.5'); // SMALLER HUD!
 
-            // Background "Tray"
-            const bg = document.createElement('a-box');
-            bg.setAttribute('width', '1.8'); // Extended width
-            bg.setAttribute('height', '0.5'); // Taller
-            bg.setAttribute('depth', '0.01');
-            bg.setAttribute('color', '#111');
-            bg.setAttribute('opacity', '0.8');
-            bg.setAttribute('class', 'clickable'); // To catch rays
+            // GLASSMORPHISM BACKGROUND
+            const bg = document.createElement('a-plane');
+            bg.setAttribute('width', '1.6'); // Adjusted for content
+            bg.setAttribute('height', '0.45');
+            bg.setAttribute('color', '#1a1a1a');
+            bg.setAttribute('opacity', '0.7'); // Glassy
+            bg.setAttribute('material', 'shader: flat; transparent: true');
             menu.appendChild(bg);
+
+            // Border/Frame
+            const border = document.createElement('a-plane');
+            border.setAttribute('width', '1.62');
+            border.setAttribute('height', '0.47');
+            border.setAttribute('position', '0 0 -0.001');
+            border.setAttribute('color', '#ffffff');
+            border.setAttribute('opacity', '0.2');
+            menu.appendChild(border);
 
             // Title
             const title = document.createElement('a-text');
-            title.setAttribute('value', 'BOUTIQUE');
+            title.setAttribute('value', 'BOUTIQUE VR');
             title.setAttribute('align', 'center');
-            title.setAttribute('position', '0 0.18 0.02');
-            title.setAttribute('width', '2.5'); // Readable text
-            title.setAttribute('color', '#FFD700');
+            title.setAttribute('position', '0 0.16 0.01');
+            title.setAttribute('width', '3');
+            title.setAttribute('color', '#ffffff');
+            title.setAttribute('font', 'mozillavr');
             menu.appendChild(title);
 
-            // Grid items
+            // DIAGNOSTIC TEXT REMOVED
+
+            // Item Config
             const items = [
-                { type: 'box', color: '#8A2BE2', label: 'Cube' },
-                { type: 'sphere', color: '#FF6B6B', label: 'Sphere' },
-                { type: 'cylinder', color: '#4ECDC4', label: 'Cyl' },
-                { type: 'cone', color: '#FFE66D', label: 'Cone' },
-                { type: 'torus', color: '#A855F7', label: 'Torus' },
-                { type: 'tetrahedron', color: '#06D6A0', label: 'Tetra' }
+                { type: 'box', color: '#ff6b6b', label: 'CUBE' },
+                { type: 'sphere', color: '#4ecdc4', label: 'SPHERE' },
+                { type: 'cylinder', color: '#ffe66d', label: 'CYL' },
+                { type: 'cone', color: '#ff9f43', label: 'CONE' },
+                { type: 'torus', color: '#a29bfe', label: 'TORUS' }
             ];
 
+            const startX = -0.5; // Shifted left to fit 5 items
+            const gap = 0.25;
+
             items.forEach((item, index) => {
-                // Layout in a single row
-                const x = (index - 2.5) * 0.25;
+                const x = startX + (index * gap);
                 const y = -0.05;
 
-                // Button Container
+                // CONTAINER
                 const btnGroup = document.createElement('a-entity');
                 btnGroup.setAttribute('position', `${x} ${y} 0.02`);
 
-                // Button Background
+                // BUTTON BACK (Larger, easier to hit)
                 const btn = document.createElement('a-box');
-                btn.setAttribute('width', '0.2');
+                btn.setAttribute('width', '0.2'); // Bigger touch target
                 btn.setAttribute('height', '0.2');
-                btn.setAttribute('depth', '0.05'); // Thicker for better intersection
-                btn.setAttribute('color', '#333');
-                btn.setAttribute('class', 'clickable'); // Raycastable
+                btn.setAttribute('depth', '0.04');
+                btn.setAttribute('color', '#2d3436');
+                btn.setAttribute('class', 'clickable'); // RAYCAST TARGET
 
-                // Hover effect with Scale
+                // Spawn Data
+                btn.dataset.spawnType = item.type;
+                btn.dataset.spawnColor = item.color;
+
+                // Hover Scale Animation (Feedback)
                 btn.addEventListener('mouseenter', () => {
-                    btn.setAttribute('color', '#555');
                     btn.setAttribute('scale', '1.1 1.1 1.1');
+                    btn.setAttribute('color', '#636e72');
                 });
                 btn.addEventListener('mouseleave', () => {
-                    btn.setAttribute('color', '#333');
                     btn.setAttribute('scale', '1 1 1');
-                });
-
-                // Click to spawn
-                btn.addEventListener('click', () => {
-                    spawnObject(item.type, item.color);
-                    // Visual feedback
-                    btn.setAttribute('color', '#00FF00');
-                    setTimeout(() => btn.setAttribute('color', '#555'), 200);
+                    btn.setAttribute('color', '#2d3436');
                 });
 
                 btnGroup.appendChild(btn);
 
-                // Mini Icon
+                // 3D ICON
                 const icon = document.createElement(`a-${item.type}`);
-                icon.setAttribute('position', '0 0 0.06');
+                icon.setAttribute('position', '0 0 0.04');
                 icon.setAttribute('scale', '0.05 0.05 0.05');
-                icon.setAttribute('rotation', '20 20 0');
-                icon.setAttribute('color', item.color);
+                icon.setAttribute('rotation', '25 25 0');
+                // Use a brighter material for visibility
+                icon.setAttribute('material', `color: ${item.color}; metalness: 0.3; roughness: 0.5`);
                 if (item.type === 'torus') icon.setAttribute('radius-tubular', '0.02');
                 btnGroup.appendChild(icon);
+
+                // LABEL (Underneath)
+                const label = document.createElement('a-text');
+                label.setAttribute('value', item.label);
+                label.setAttribute('align', 'center');
+                label.setAttribute('position', '0 -0.13 0');
+                label.setAttribute('width', '2');
+                label.setAttribute('scale', '0.7 0.7 0.7'); // Smaller text
+                label.setAttribute('color', '#dfe6e9');
+                btnGroup.appendChild(label);
 
                 menu.appendChild(btnGroup);
             });
 
-            cam.appendChild(menu); // ATTACH TO CAMERA
-            console.log('🛍️ HUD Menu Created!');
-
-            // Force Raycaster Refresh
-            const rightCntrl = document.getElementById('right-cntrl');
-            if (rightCntrl && rightCntrl.components.raycaster) {
-                rightCntrl.components.raycaster.refreshObjects();
-            }
-
+            cam.appendChild(menu);
+            console.log('🛍️ HUD Redesigned!');
             return menu;
         }
 
+        let lastSpawnTime = 0;
+
         function spawnObject(type, color) {
+            const now = Date.now();
+            if (now - lastSpawnTime < 500) {
+                console.warn('⚠️ Spawn rate limited');
+                return;
+            }
+            lastSpawnTime = now;
+
             // Get camera position and direction
             const cam = document.getElementById('cam');
             const camPos = new THREE.Vector3();
@@ -147,9 +170,11 @@ window.addEventListener('load', () => {
             cam.object3D.getWorldPosition(camPos);
             cam.object3D.getWorldDirection(camDir);
 
-            // Spawn 0.5m in front of camera
-            const spawnPos = camPos.clone().add(camDir.multiplyScalar(-0.5));
-            spawnPos.y = Math.max(spawnPos.y, 0.2); // At least 20cm from ground
+            // Spawn 1.5m in front of camera (POSITIVE SCALAR!)
+            const spawnPos = camPos.clone().add(camDir.multiplyScalar(1.5));
+            spawnPos.y = Math.max(spawnPos.y, 0.5); // At least 50cm from ground to be visible
+
+            console.log('✨ SPAWNING at:', spawnPos);
 
             // Create entity based on type
             let entity;
@@ -188,13 +213,14 @@ window.addEventListener('load', () => {
             entity.setAttribute('position', `${spawnPos.x} ${spawnPos.y} ${spawnPos.z}`);
             entity.setAttribute('color', color);
             entity.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
-            entity.classList.add('grabbable');
-            entity.id = `spawned-${Date.now()}`;
+            entity.setAttribute('class', 'clickable grabbable');
+            entity.id = `spawned-${now}`;
 
             sceneEl.appendChild(entity);
             spawnedObjects.push(entity);
 
-            debugEl.textContent = `Spawné: ${type}`;
+            const debugEl = document.getElementById('debug');
+            if (debugEl) debugEl.textContent = `Spawné: ${type}`;
             console.log(`📦 Spawned ${type} at`, spawnPos);
         }
 
@@ -283,142 +309,152 @@ window.addEventListener('load', () => {
                 } catch (e) { }
             }
 
-            // --- MANUEL RAYCASTER POUR UI ---
-            // 1. Identifier controller droit
-            if (!window.rightController) {
-                const ses = sceneEl.renderer.xr.getSession();
-                if (ses) {
-                    for (const source of ses.inputSources) {
-                        // On veut seulement les contrôleurs physiques (poignée), pas les mains nues si possible
-                        // 'tracked-pointer' est générique, mais souvent 'screen' pour téléphone.
-                        if (source.handedness === 'right' && source.targetRayMode === 'tracked-pointer') {
-                            const c = sceneEl.renderer.xr.getController(source.profiles.includes('oculus-touch-controls') ? 1 : 0);
-                            // Hack: on prend le c1 ou celui qui correspond. 
-                            // Plus robuste: on check les contrôleurs threejs déjà connectés.
+            // --- MANUEL RAYCASTER & DIAGNOSTICS ---
 
-                            // On va utiliser ceux qu'on a stocké via l'event 'connected' plus bas
-                            // Donc on attend que l'event connected ait fait le taf.
-                        }
+            const ses = sceneEl.renderer.xr.getSession();
+            const diagText = document.getElementById('diag-text');
+
+            // 1. Identification (Si pas encore trouvé)
+            if (!window.rightController && ses) {
+                for (const source of ses.inputSources) {
+                    if (source.handedness === 'right' && source.targetRayMode === 'tracked-pointer') {
+                        // On suppose que c'est le controller 1 (souvent Touch Droit)
+                        // Une meilleure approche est de vérifier les profiles, mais c'est un bon fallback
+                        const c = sceneEl.renderer.xr.getController(1);
+                        window.rightController = c;
                     }
                 }
             }
 
-            if (window.rightController) {
+            // 2. Diagnostics Panel Loop
+            // 2. Button State Loop (Kept for logic, removed visuals)
+            if (ses) {
+                let isAnyBtnPressed = false;
+
+                ses.inputSources.forEach((s, i) => {
+                    if (s.gamepad) {
+                        s.gamepad.buttons.forEach((b, bi) => {
+                            if (b.pressed) {
+                                isAnyBtnPressed = true;
+                            }
+                        });
+                    }
+                });
+
+                // Export button state for interaction
+                // Export button state for interaction
+                window.isAnyBtnPressed = isAnyBtnPressed;
+
+                if (!isAnyBtnPressed) {
+                    window.uiClickLock = false;
+                }
+            }
+
+            // 3. Interaction Logic
+            if (window.rightController && inventoryEntity) {
                 // Setup Laser & Cursor if not exist
                 if (!window.rightController.getObjectByName('laser-line')) {
-                    // Ligne (Laser)
                     const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)]);
-                    const mat = new THREE.LineBasicMaterial({ color: 0xFF0000, linewidth: 4 });
+                    const mat = new THREE.LineBasicMaterial({ color: 0xFFFFFF, linewidth: 4 });
                     const line = new THREE.Line(geom, mat);
                     line.name = 'laser-line';
                     window.rightController.add(line);
 
-                    // Curseur (Boule au bout)
-                    const cursorGeom = new THREE.SphereGeometry(0.015, 16, 16);
-                    const cursorMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+                    const cursorGeom = new THREE.SphereGeometry(0.01, 16, 16);
+                    const cursorMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
                     const cursor = new THREE.Mesh(cursorGeom, cursorMat);
                     cursor.name = 'laser-cursor';
                     cursor.visible = false;
                     window.rightController.add(cursor);
                 }
 
-                // Raycasting Logic
-                if (inventoryEntity && inventoryEntity.object3D.visible) {
-                    const line = window.rightController.getObjectByName('laser-line');
-                    const cursor = window.rightController.getObjectByName('laser-cursor');
+                // RAYCAST
+                const tempMatrix = new THREE.Matrix4();
+                tempMatrix.identity().extractRotation(window.rightController.matrixWorld);
 
-                    const tempMatrix = new THREE.Matrix4();
-                    tempMatrix.identity().extractRotation(window.rightController.matrixWorld);
+                const raycaster = new THREE.Raycaster();
+                raycaster.ray.origin.setFromMatrixPosition(window.rightController.matrixWorld);
+                raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+                raycaster.far = 3.0;
 
-                    const raycaster = new THREE.Raycaster();
-                    raycaster.ray.origin.setFromMatrixPosition(window.rightController.matrixWorld);
-                    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-                    raycaster.far = 2.0; // Max distance
+                // Visuals
+                const line = window.rightController.getObjectByName('laser-line');
+                const cursor = window.rightController.getObjectByName('laser-cursor');
 
-                    // Collect UI buttons
-                    const buttons = [];
-                    // On scanne récursivement pour trouver les objets visuels (Mesh) des boutons
-                    inventoryEntity.object3D.traverse(child => {
-                        // On cherche l'element A-Frame associé qui est 'clickable'
-                        if (child.el && child.el.classList.contains('clickable')) {
-                            // On ajoute le Mesh Three.js pour le raycaster
-                            if (child.isMesh) buttons.push(child);
-                        }
-                    });
+                // Gather Targets
+                const buttons = [];
+                inventoryEntity.object3D.traverse(child => {
+                    if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
+                        buttons.push(child);
+                    }
+                });
 
-                    const intersects = raycaster.intersectObjects(buttons);
+                const intersects = raycaster.intersectObjects(buttons);
 
-                    // Reset visual state
-                    buttons.forEach(mesh => {
-                        if (mesh.el && mesh.el._isHovered) {
-                            mesh.el.setAttribute('scale', '1 1 1');
-                            mesh.el.setAttribute('color', '#333');
-                            mesh.el._isHovered = false;
-                        }
-                    });
+                // Clear Visual State
+                buttons.forEach(mesh => {
+                    if (mesh.el && mesh.el._isHovered) {
+                        mesh.el.setAttribute('scale', '1 1 1');
+                        mesh.el.setAttribute('color', '#2d3436');
+                        mesh.el._isHovered = false;
+                    }
+                });
 
-                    if (intersects.length > 0) {
-                        const hit = intersects[0];
-                        const distance = hit.distance;
-                        const el = hit.object.el;
+                if (intersects.length > 0) {
+                    const hit = intersects[0];
+                    window.lastIntersect = hit.object.el.dataset.spawnType || 'BG';
+                    const el = hit.object.el;
+                    const dist = hit.distance;
 
-                        // 1. UPDATE LASER LENGTH (Stop at impact)
-                        if (line) {
-                            const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -distance)];
-                            line.geometry.setFromPoints(points);
-                        }
+                    // Update Laser Length
+                    if (line) {
+                        const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -dist)];
+                        line.geometry.setFromPoints(points);
+                        line.geometry.attributes.position.needsUpdate = true;
+                    }
+                    if (cursor) {
+                        cursor.visible = true;
+                        cursor.position.set(0, 0, -dist);
+                    }
 
-                        // 2. UPDATE CURSOR POSITION
-                        if (cursor) {
-                            cursor.visible = true;
-                            cursor.position.set(0, 0, -distance);
-                        }
-
-                        // 3. HOVER EFFECT
-                        if (el && !el._isHovered) {
+                    // Hover & Click
+                    if (el.dataset.spawnType) {
+                        if (!el._isHovered) {
                             el.setAttribute('scale', '1.1 1.1 1.1');
-                            el.setAttribute('color', '#555');
+                            el.setAttribute('color', '#636e72');
                             el._isHovered = true;
                         }
 
-                        // 4. CLICK HANDLING (Detect Trigger Press)
-                        const ses = sceneEl.renderer.xr.getSession();
-                        if (ses) {
-                            for (const s of ses.inputSources) {
-                                if (s.handedness === 'right' && s.gamepad) {
-                                    // Trigger = button 0
-                                    if (s.gamepad.buttons[0].pressed) {
-                                        if (!window.uiClickLock) {
-                                            window.uiClickLock = true;
-                                            // Trigger visual click
-                                            el.setAttribute('color', '#00FF00');
-                                            setTimeout(() => el.setAttribute('color', '#555'), 200);
+                        // CLICK CHECK (Using state computed in Diag step)
+                        if (window.isAnyBtnPressed) {
+                            if (!window.uiClickLock) {
+                                window.uiClickLock = true;
+                                console.log('SPAWN COMMAND SENT for', el.dataset.spawnType);
 
-                                            // CALL SPAWN from dataset if present, or infer from structure in createHUDInventory
-                                            // The listener on the element might not fire via .click() in this context purely manually.
-                                            // Let's call a global helper or replicate logic.
-                                            // We previously attached a listener that calls spawnObject.
-                                            // Let's force the event dispatch.
-                                            el.emit('click');
-                                        }
-                                    } else {
-                                        window.uiClickLock = false;
-                                    }
-                                }
+                                // Feedback
+                                el.setAttribute('color', '#00cec9');
+
+                                // SPAWN
+                                spawnObject(el.dataset.spawnType, el.dataset.spawnColor);
                             }
                         }
                     } else {
-                        // NO HIT
-                        if (line) {
-                            const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)]; // Full length
-                            line.geometry.setFromPoints(points);
-                        }
-                        if (cursor) cursor.visible = false;
+                        // Hit something else (bg)
                     }
+
+                } else {
+                    // NO HIT
+                    window.lastIntersect = null;
+                    if (line) {
+                        const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)];
+                        line.geometry.setFromPoints(points);
+                        line.geometry.attributes.position.needsUpdate = true;
+                    }
+                    if (cursor) cursor.visible = false;
+
                 }
             }
 
-            // Objet attrapé suit le controller
 
             // Objet attrapé suit le controller
             if (grabbed && grabController && currentGrabbedEl) {
@@ -439,6 +475,7 @@ window.addEventListener('load', () => {
                 } catch (e) { }
             }
         }
+
 
         function grab(controller) {
             if (grabbed) return;
@@ -543,5 +580,5 @@ window.addEventListener('load', () => {
             if (surfaces.length > 200) surfaces.shift();
         }
 
-    }, 1000);
+    }, 100);
 });
