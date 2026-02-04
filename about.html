@@ -6,70 +6,100 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/src/style.css">
   <link rel="stylesheet" href="/src/styles/pages.css">
-  <title>About - HOLO BARISTA</title>
+  <title>Contact - HOLO BARISTA</title>
 </head>
-
 <body>
-  <div class="page-container">
-    <nav class="navbar">
+
+        <nav class="navbar">
       <div class="nav-links">
         <a href="/">Home</a>
         <a href="/about.html">About</a>
         <a href="/contact.html">Contact</a>
       </div>
     </nav>
-
-    <main class="page-content">
-      <h1 class="page-title">☕ About Us</h1>
-      
-      <div class="page-text">
-        <h2>🎮 The Project</h2>
-        <p>
-          <strong>HOLO BARISTA</strong> is an immersive VR/XR experience that lets you become 
-          a virtual barista. Grab coffee cups, throw them around, and discover the joy of 
-          serving virtual coffee in augmented reality!
-        </p>
-        
-        <h2>🛠️ Technology</h2>
-        <p>
-          Built with cutting-edge web technologies: A-Frame for VR rendering, 
-          WebXR for immersive AR experiences, and physics simulation for realistic 
-          interactions. Works on Quest, WebXR-compatible browsers, and more!
-        </p>
-        
-        <h2>👥 The Team</h2>
-        <div class="team-grid">
-          <div class="team-member">
-            <div class="emoji">👨‍💻</div>
-            <div class="name">Jean</div>
-            <div class="role">Developer</div>
-          </div>
-          <div class="team-member">
-            <div class="emoji">🎨</div>
-            <div class="name">Team MMI</div>
-            <div class="role">Design & UX</div>
-          </div>
-          <div class="team-member">
-            <div class="emoji">☕</div>
-            <div class="name">Coffee</div>
-            <div class="role">Inspiration</div>
-          </div>
+    <section class="section-project">
+        <div class="container">
+            <h2 class="title-white">THE PROJECT</h2>
+            <p class="text-white">
+                HOLO BARISTA is an immersive VR/XR experience that lets you become a virtual barista. 
+                Grab coffee cups, throw them around, and discover the joy of serving virtual coffee in augmented reality!
+            </p>
         </div>
-        
-        <h2>🎓 SAE 402 Project</h2>
-        <p>
-          This project is part of the SAE 402 course at BUT MMI (Multimedia and Internet Professions).
-          It explores the possibilities of immersive web technologies and XR development.
-        </p>
-      </div>
-      
-      <a href="/" class="back-btn">← Back to Home</a>
-    </main>
+    </section>
 
-    <footer class="footer">
+<section class="section-tech">
+        <div class="container center">
+            <h2 class="title-gray">TECHNOLOGY</h2>
+            <p class="text-gray">
+                Built with cutting-edge web technologies: A-Frame for VR rendering, WebXR for immersive AR experiences, 
+                and physics simulation for realistic interactions. Works on Quest, WebXR-compatible browsers, and more!
+            </p>
+
+            <div class="tech-badges">
+                <span class="badge">AFrame</span>
+                <span class="badge">Webxr</span>
+                <span class="badge">THREE.js</span>
+                <span class="badge">Javascript</span>
+                <span class="badge">HTML</span>
+                <span class="badge">CSS</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-team">
+        <div class="container">
+            <h2 class="title-white center">MEET OUR TEAM</h2>
+            
+            <div class="team-grid">
+                <div class="team-card">
+                    <div class="img-wrapper">
+                        <img src="/public/human-jean.png" alt="Jean Paugnat">
+                    </div>
+                    <h3>JEAN PAUGNAT</h3>
+                    <p>Product Engineer</p>
+                </div>
+
+                <div class="team-card">
+                    <div class="img-wrapper">
+                        <img src="/public/human-wahel.png" alt="Wahel Gader">
+                    </div>
+                    <h3>WAHEL GADER</h3>
+                    <p>Lead Back-End</p>
+                </div>
+
+                <div class="team-card">
+                    <div class="img-wrapper">
+                        <img src="/public/human-manon.png" alt="Manon Lippler">
+                    </div>
+                    <h3>MANON LIPPLER</h3>
+                    <p>Game Developer</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+
+    <footer class="footer-sae">
+        <div class="container">
+            <h2 class="title-gray">SAE 402 PROJECT</h2>
+            <p class="text-gray footer-desc">
+                This project is part of the SAE 402 at BUT MMI. It explores the possibilities 
+                of immersive web technologies and XR development.
+            </p>
+            
+            <a href="#" class="btn-brown">Back to Home</a>
+        </div>
+    </footer>
+        <footer class="footer">
       <p>&copy;2026 JWM MMI Games</p>
     </footer>
-  </div>
-</body>
-
+    </body>
+      <script>
+    function handleSubmit(e) {
+      e.preventDefault();
+      alert('Thank you for your message! ☕ We will get back to you soon.');
+      e.target.reset();
+    }
+  </script>
 </html>
