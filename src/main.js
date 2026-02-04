@@ -4,10 +4,67 @@ import 'aframe-physics-system';
 
 /* global THREE */
 
-console.log('☕ SAE 402 - Chargement...');
+console.log('☕ SAE 402 - Chargement initial du script...');
 
-window.addEventListener('load', () => {
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOM Content Loaded!');
+    
+    // ===== LANDING PAGE LOGIC =====
+    const startBtn = document.getElementById('start-btn');
+    const landingPage = document.getElementById('landing-page');
+    const gameContainer = document.getElementById('game-container');
+
+    console.log('🔍 Éléments trouvés:', {
+        startBtn: !!startBtn,
+        landingPage: !!landingPage,
+        gameContainer: !!gameContainer
+    });
+
+    if (!startBtn) {
+        console.error('❌ Bouton start-btn non trouvé!');
+        return;
+    }
+
+    // Quand on clique sur "JOUER MAINTENANT"
+    startBtn.addEventListener('click', () => {
+        console.log('🎮 Bouton Start cliqué!');
+        
+        // 1. Animation de sortie de la landing page
+        landingPage.style.opacity = '0';
+        console.log('👋 Animation de sortie lancée...');
+
+        // 2. Attendre la fin de l'animation CSS (0.8s) avant de changer le DOM
+        setTimeout(() => {
+            console.log('⏰ Timeout 800ms terminé');
+            landingPage.style.display = 'none';
+            gameContainer.classList.remove('hidden');
+            console.log('📦 Game container affiché');
+            
+            // Afficher la scène A-Frame
+            const sceneEl = document.getElementById('scene');
+            if (sceneEl) {
+                sceneEl.style.display = 'block';
+                console.log('🎬 Scène A-Frame affichée');
+            }
+            
+            console.log("☕ Appel de initXRWorld()...");
+            
+            // 3. Initialiser le monde XR
+            initXRWorld();
+            
+        }, 800);
+    });
+    
+    console.log('✅ Event listener sur start-btn ajouté');
+});
+
+// ===== XR WORLD LOGIC =====
+function initXRWorld() {
+    console.log('🚀 initXRWorld() appelée!');
+    
     setTimeout(() => {
+        console.log('⏰ Timeout 500ms dans initXRWorld terminé');
+        
         const debugEl = document.getElementById('debug');
         const surfacesEl = document.getElementById('surfaces');
         const btn = document.getElementById('btn');
@@ -15,12 +72,23 @@ window.addEventListener('load', () => {
         const cubeEl = document.getElementById('cube');
         const cursorEl = document.getElementById('cursor');
 
+        console.log('🔍 Éléments XR trouvés:', {
+            debugEl: !!debugEl,
+            surfacesEl: !!surfacesEl,
+            btn: !!btn,
+            sceneEl: !!sceneEl,
+            cubeEl: !!cubeEl,
+            cursorEl: !!cursorEl
+        });
+
         if (!sceneEl || !cubeEl) {
-            debugEl.textContent = 'Éléments manquants!';
+            if (debugEl) debugEl.textContent = 'Éléments manquants!';
+            console.error('❌ Éléments A-Frame manquants!');
             return;
         }
 
-        debugEl.textContent = 'Prêt!';
+        console.log('✅ Éléments A-Frame OK!');
+        if (debugEl) debugEl.textContent = 'Prêt!';
 
         let xrSession = null;
         let xrRefSpace = null;
@@ -39,6 +107,13 @@ window.addEventListener('load', () => {
         const trashcanEl = document.getElementById('trashcan');
         const spawnBtnEl = document.getElementById('spawn-btn');
         const spawnBtnBox = spawnBtnEl ? spawnBtnEl.querySelector('a-box') : null;
+        
+        // Masquer le loader
+        const loader = document.querySelector('.loader');
+        if (loader) loader.style.display = 'none';
+
+        // Afficher le bouton AR si disponible
+        if (btn) btn.style.display = 'block';
 
         btn.onclick = async () => {
             debugEl.textContent = 'Démarrage...';
@@ -299,5 +374,5 @@ window.addEventListener('load', () => {
             if (surfaces.length > 200) surfaces.shift();
         }
 
-    }, 1000);
-});
+    }, 500);
+}

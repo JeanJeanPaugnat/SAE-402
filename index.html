@@ -4,19 +4,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/src/style.css">
   <title>SAE 402</title>
 </head>
 
 <body>
-  <div id="overlay"
-    style="position:fixed;top:10px;left:10px;z-index:999;background:rgba(0,0,0,0.8);color:white;padding:15px;font-family:sans-serif;border-radius:8px;">
-    <h2 style="margin:0 0 10px 0;">☕ SAE 402</h2>
-    <p id="debug" style="color:yellow;margin:5px 0;">Chargement...</p>
-    <p id="surfaces" style="color:cyan;margin:5px 0;">Surfaces: 0</p>
-    <button id="btn" style="padding:10px 20px;font-size:16px;">Lancer AR</button>
-  </div>
+  <div id="landing-page" class="landing-container">
+        
+        <nav class="navbar">
+            <div class="nav-links">
+                <a href="#">À propos</a>
+                <a href="#">Contact</a>
+            </div>
+        </nav>
 
-  <a-scene id="scene" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"
+        <main class="content">
+            <div class="logo-container">
+                <h1 class="logo-text">HOLO<br>BARISTA</h1> 
+                <p class="subtitle">Low Poly Coffee Experience</p>
+            </div>
+
+            <p class="headline">
+                Plongez dans l'univers du café en VR.<br>
+                Devenez un maître barista légendaire.
+            </p>
+
+            <button id="start-btn" class="wood-button">
+                <span class="icon">☕</span> JOUER MAINTENANT
+            </button>
+            
+            <p class="vr-hint">Compatible Oculus & WebXR</p>
+        </main>
+
+        <footer class="footer">
+            <div class="socials">
+                <span>📷</span>
+                <span>🐦</span>
+                <span>▶️</span>
+            </div>
+            <p>&copy; 2026 Mean Bean Games</p>
+        </footer>
+    </div>
+
+    <div id="game-container" class="hidden">
+        <div class="loader">
+            <h2>Chargement du café...</h2>
+            <div class="spinner"></div>
+            </div>
+    </div>
+
+  <a-scene id="scene" style="display:none;" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"
     background="color:transparent">
 
     <a-light type="ambient" intensity="0.6"></a-light>
