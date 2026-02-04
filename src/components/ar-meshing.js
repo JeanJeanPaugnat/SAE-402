@@ -125,4 +125,8 @@ AFRAME.registerComponent('ar-meshing', {
         geometry.index.needsUpdate = true;
         geometry.computeBoundingSphere();
     }
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> origin/debut_jeu

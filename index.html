@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
   <title>SAE 402</title>
 </head>
 
@@ -52,3 +53,314 @@
 </body>
 
 </html>
+=======
+  <title>Coffee Quest AR - SAE 402</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+
+<body>
+  <div id="overlay">
+    <h2>☕ Coffee Quest AR</h2>
+    <p id="debug">Chargement...</p>
+    <p id="surfaces">Surfaces: 0</p>
+    <button id="btn">Lancer AR</button>
+    <button id="reset-rules" style="margin-top: 10px; font-size: 12px;" onclick="localStorage.removeItem('coffee-quest-rules-shown'); alert('Règles réinitialisées!')">Réinitialiser les règles</button>
+  </div>
+
+  <a-scene id="scene" 
+    physics="debug:false;gravity:-9.8" 
+    vr-mode-ui="enabled:false" 
+    renderer="alpha:true;antialias:true"
+    background="color:transparent"
+    ar-plane-detection="visualize: true"
+    xr-object-placer="model: #coffee-cup-model; scale: 0.15"
+    xr-hit-test>
+
+    <a-assets>
+      <a-asset-item id="coffee-cup-model" src="/models/Coffee cup.glb"></a-asset-item>
+      <a-asset-item id="coffee-machine-model" src="/models/Coffee Machine.glb"></a-asset-item>
+      <audio id="coffee-sound" src="/assets/café.MP3" preload="auto"></audio>
+      <audio id="cup-sound" src="/assets/tasse.mp3" preload="auto"></audio>
+    </a-assets>
+
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
+
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0">
+        <!-- Panneau de règles attaché à la caméra -->
+        <a-entity id="rules-panel-hud" visible="false" position="0 0 -1.5">
+          <a-plane width="1.2" height="1.6" color="#000000" opacity="0.95" 
+            material="shader: flat">
+          </a-plane>
+          <a-text value="Bienvenue Barista !" 
+            position="0 0.65 0.01" 
+            width="1.8" 
+            color="#FFD700" 
+            align="center" 
+            wrap-count="30">
+          </a-text>
+          <a-text value="Votre mission : preparer et servir des cafes !" 
+            position="0 0.4 0.01" 
+            width="1.1" 
+            color="#FFFFFF" 
+            align="center" 
+            wrap-count="35">
+          </a-text>
+          <a-text value="Pour commencer :" 
+            position="0 0.15 0.01" 
+            width="1.1" 
+            color="#4CC3D9" 
+            align="center" 
+            wrap-count="35">
+          </a-text>
+          <a-text value="Placez la machine a cafe et les tasses\nsur une table, comptoir ou sol." 
+            position="0 -0.05 0.01" 
+            width="1" 
+            color="#FFFFFF" 
+            align="center" 
+            wrap-count="40">
+          </a-text>
+          <a-text value="Utilisez votre main pour attraper\net deplacer les objets." 
+            position="0 -0.3 0.01" 
+            width="1" 
+            color="#FFFFFF" 
+            align="center" 
+            wrap-count="40">
+          </a-text>
+          <!-- Bouton OK -->
+          <a-box id="rules-ok-btn-hud" 
+            position="0 -0.6 0.01" 
+            width="0.5" 
+            height="0.15" 
+            depth="0.05" 
+            color="#4CC3D9"
+            class="clickable">
+          </a-box>
+          <a-text value="OK, C'est parti !" 
+            position="0 -0.6 0.065" 
+            width="1.2" 
+            color="#000000" 
+            align="center">
+          </a-text>
+        </a-entity>
+
+        <!-- Panneau de clients attaché à la caméra -->
+        <a-entity id="clients-panel-hud" visible="false" position="0 0 -1.5">
+          <a-plane width="1.2" height="1.2" color="#000000" opacity="0.95" 
+            material="shader: flat">
+          </a-plane>
+          <a-text value="Cafe en place !" 
+            position="0 0.45 0.01" 
+            width="1.8" 
+            color="#4CC3D9" 
+            align="center">
+          </a-text>
+          <a-text value="Parfait ! Votre espace de travail est pret." 
+            position="0 0.2 0.01" 
+            width="1.1" 
+            color="#FFFFFF" 
+            align="center" 
+            wrap-count="35">
+          </a-text>
+          <a-text value="Les premiers clients vont arriver..." 
+            position="0 0 0.01" 
+            width="1.1" 
+            color="#FFFFFF" 
+            align="center" 
+            wrap-count="35">
+          </a-text>
+          <a-text value="Astuce : Pointez la machine et appuyez
+sur B pour lancer un cafe !" 
+            position="0 -0.25 0.01" 
+            width="1" 
+            color="#FFD700" 
+            align="center" 
+            wrap-count="40">
+          </a-text>
+          <!-- Bouton OK -->
+          <a-box id="clients-ok-btn-hud" 
+            position="0 -0.4 0.01" 
+            width="0.6" 
+            height="0.15" 
+            depth="0.05" 
+            color="#FFD700"
+            class="clickable">
+          </a-box>
+          <a-text value="Pret a servir !" 
+            position="0 -0.4 0.065" 
+            width="1.2" 
+            color="#000000" 
+            align="center">
+          </a-text>
+        </a-entity>
+      </a-camera>
+    </a-entity>
+
+    <!-- Panneau de règles 3D -->
+    <a-entity id="rules-panel" visible="false" position="0 1.6 -1.5">
+      <a-plane width="1.2" height="1.6" color="#000000" opacity="0.95" 
+        material="shader: flat">
+      </a-plane>
+      <a-text value="Bienvenue Barista !" 
+        position="0 0.65 0.01" 
+        width="1.8" 
+        color="#FFD700" 
+        align="center" 
+        wrap-count="30">
+      </a-text>
+      <a-text value="Votre mission : preparer et servir des cafes !" 
+        position="0 0.4 0.01" 
+        width="1.1" 
+        color="#FFFFFF" 
+        align="center" 
+        wrap-count="35">
+      </a-text>
+      <a-text value="Pour commencer :" 
+        position="0 0.15 0.01" 
+        width="1.1" 
+        color="#4CC3D9" 
+        align="center" 
+        wrap-count="35">
+      </a-text>
+      <a-text value="Placez la machine a cafe et les tasses\nsur une table, comptoir ou sol." 
+        position="0 -0.05 0.01" 
+        width="1" 
+        color="#FFFFFF" 
+        align="center" 
+        wrap-count="40">
+      </a-text>
+      <a-text value="Utilisez votre main pour attraper\net deplacer les objets." 
+        position="0 -0.3 0.01" 
+        width="1" 
+        color="#FFFFFF" 
+        align="center" 
+        wrap-count="40">
+      </a-text>
+      <!-- Bouton OK -->
+      <a-box id="rules-ok-btn" 
+        position="0 -0.6 0.01" 
+        width="0.5" 
+        height="0.15" 
+        depth="0.05" 
+        color="#4CC3D9"
+        class="clickable">
+      </a-box>
+      <a-text value="OK, C'est parti !" 
+        position="0 -0.6 0.065" 
+        width="1.2" 
+        color="#000000" 
+        align="center">
+      </a-text>
+    </a-entity>
+
+    <!-- Panneau clients 3D -->
+    <a-entity id="clients-panel" visible="false" position="0 1.6 -1.5">
+      <a-plane width="1.2" height="1.2" color="#000000" opacity="0.95" 
+        material="shader: flat">
+      </a-plane>
+      <a-text value="Cafe en place !" 
+        position="0 0.45 0.01" 
+        width="1.8" 
+        color="#4CC3D9" 
+        align="center">
+      </a-text>
+      <a-text value="Parfait ! Votre espace de travail est pret." 
+        position="0 0.2 0.01" 
+        width="1.1" 
+        color="#FFFFFF" 
+        align="center" 
+        wrap-count="35">
+      </a-text>
+      <a-text value="Les premiers clients vont arriver..." 
+        position="0 0 0.01" 
+        width="1.1" 
+        color="#FFFFFF" 
+        align="center" 
+        wrap-count="35">
+      </a-text>
+      <a-text value="Astuce : Pointez la machine et appuyez
+sur B pour lancer un cafe !" 
+        position="0 -0.25 0.01" 
+        width="1" 
+        color="#FFD700" 
+        align="center" 
+        wrap-count="40">
+      </a-text>
+      <!-- Bouton OK -->
+      <a-box id="clients-ok-btn" 
+        position="0 -0.4 0.01" 
+        width="0.6" 
+        height="0.15" 
+        depth="0.05" 
+        color="#FFD700"
+        class="clickable">
+      </a-box>
+      <a-text value="Pret a servir !" 
+        position="0 -0.4 0.065" 
+        width="1.2" 
+        color="#000000" 
+        align="center">
+      </a-text>
+    </a-entity>
+
+    <!-- CUBE original du camarade (masqué) -->
+    <a-box id="test-cube" visible="false" position="0 0.5 -0.7" width="0.15" height="0.15" depth="0.15" color="#8A2BE2"
+      dynamic-body="mass:0.5;linearDamping:0.3;angularDamping:0.3"></a-box>
+
+    <!-- Comptoir (surface statique) -->
+    <a-box 
+      id="comptoir"
+      visible="false"
+      position="0 0.8 -0.8" 
+      width="2" 
+      height="0.05" 
+      depth="0.8" 
+      color="#8B4513"
+      static-body></a-box> 
+    
+    <!-- Machine à café (attrapable) -->
+    <a-entity 
+      id="coffee-machine"
+      class="grabbable"
+      visible="false"
+      data-machine="true"
+      gltf-model="#coffee-machine-model" 
+      position="-0.3 1.0 -0.8" 
+      rotation="0 180 0" 
+      scale="0.6 0.6 0.6"
+      dynamic-body="shape: box; halfExtents: 0.12 0.18 0.12; mass: 1.5; linearDamping: 0.95; angularDamping: 0.95; restitution: 0; friction: 1"></a-entity>
+    
+    <!-- Tasse de café (attrapable) -->
+    <a-entity 
+      id="coffee-cup"
+      class="grabbable"
+      visible="false"
+      gltf-model="#coffee-cup-model" 
+      position="0.2 0.95 -0.7" 
+      rotation="0 180 0" 
+      scale="0.15 0.15 0.15"
+      dynamic-body="shape: box; halfExtents: 0.03 0.04 0.03; mass: 0.2; linearDamping: 0.9; angularDamping: 0.9; restitution: 0; friction: 1"></a-entity>
+
+    <!-- Curseur hit-test (masqué) -->
+    <a-ring id="cursor" position="0 0 -1" rotation="-90 0 0" radius-inner="0.05" radius-outer="0.08" color="#00FF00"
+      visible="false" material="opacity: 0"></a-ring>
+
+    <!-- Réticule pour placement AR -->
+    <a-entity id="reticle" visible="false">
+      <a-ring radius-inner="0.02" radius-outer="0.03" color="#FFD700" 
+        material="shader: flat; opacity: 0.8" rotation="-90 0 0"></a-ring>
+      <a-ring radius-inner="0.015" radius-outer="0.025" color="#FFFFFF" 
+        material="shader: flat; opacity: 0.5" rotation="-90 0 0" position="0 0.001 0"></a-ring>
+    </a-entity>
+
+    <!-- Sol de base -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" visible="false" static-body></a-plane>
+
+  </a-scene>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
+>>>>>>> origin/debut_jeu

@@ -6,12 +6,22 @@
  * NOTE: N'utilise QUE le grip, le trigger est réservé pour placer les tasses
  */
 
+<<<<<<< HEAD
 AFRAME.registerComponent('controller-grab', {
     schema: {
         hand: { type: 'string', default: 'right' }
     },
 
     init: function () {
+=======
+if (!AFRAME.components['controller-grab']) {
+    AFRAME.registerComponent('controller-grab', {
+        schema: {
+            hand: { type: 'string', default: 'right' }
+        },
+
+        init: function () {
+>>>>>>> origin/debut_jeu
         this.grabbedEl = null;
         this.grabOffset = new THREE.Vector3();
         this.grabDistance = 0.15; // Distance de grab en mètres
@@ -22,9 +32,15 @@ AFRAME.registerComponent('controller-grab', {
         this.el.addEventListener('gripup', this.onGripUp.bind(this));
 
         console.log(`🎮 Controller-grab initialisé pour la main ${this.data.hand}`);
+<<<<<<< HEAD
     },
 
     tick: function () {
+=======
+        },
+
+        tick: function () {
+>>>>>>> origin/debut_jeu
         // Si on tient un objet, le déplacer avec la manette
         if (this.grabbedEl) {
             const controllerPos = new THREE.Vector3();
@@ -45,9 +61,15 @@ AFRAME.registerComponent('controller-grab', {
                 this.grabbedEl.body.angularVelocity.set(0, 0, 0);
             }
         }
+<<<<<<< HEAD
     },
 
     onGripDown: function (evt) {
+=======
+        },
+
+        onGripDown: function (evt) {
+>>>>>>> origin/debut_jeu
         if (this.grabbedEl) return;
 
         const controllerPos = new THREE.Vector3();
@@ -74,22 +96,35 @@ AFRAME.registerComponent('controller-grab', {
             closestEl.emit('grab-start', { hand: this.data.hand });
             console.log(`✊ Objet attrapé avec manette: ${closestEl.id || 'sans id'}`);
         }
+<<<<<<< HEAD
     },
 
     onGripUp: function (evt) {
+=======
+        },
+
+        onGripUp: function (evt) {
+>>>>>>> origin/debut_jeu
         if (this.grabbedEl) {
             this.grabbedEl.emit('grab-end', { hand: this.data.hand });
             console.log(`🖐️ Objet relâché`);
             this.grabbedEl = null;
         }
+<<<<<<< HEAD
     }
 });
+=======
+        }
+    });
+}
+>>>>>>> origin/debut_jeu
 
 /* 
  * Composant : hand-grab
  * Description : Permet d'attraper des objets avec les mains en XR (Quest 3)
  */
 
+<<<<<<< HEAD
 AFRAME.registerComponent('hand-grab', {
     schema: {
         hand: { type: 'string', default: 'right' } // 'left' ou 'right'
@@ -102,13 +137,34 @@ AFRAME.registerComponent('hand-grab', {
         // Créer une sphère invisible pour détecter les collisions
         this.grabSphere = new THREE.Sphere(new THREE.Vector3(), 0.08); // 8cm de rayon
 
+=======
+if (!AFRAME.components['hand-grab']) {
+    AFRAME.registerComponent('hand-grab', {
+        schema: {
+            hand: { type: 'string', default: 'right' } // 'left' ou 'right'
+        },
+    
+    init: function () {
+        this.grabbedEl = null;
+        this.grabOffset = new THREE.Vector3();
+
+        // Créer une sphère invisible pour détecter les collisions
+        this.grabSphere = new THREE.Sphere(new THREE.Vector3(), 0.08); // 8cm de rayon
+
+>>>>>>> origin/debut_jeu
         // Écouter les événements de pinch (pouce + index)
         this.el.addEventListener('pinchstarted', this.onPinchStart.bind(this));
         this.el.addEventListener('pinchended', this.onPinchEnd.bind(this));
 
+<<<<<<< HEAD
         console.log(`🖐️ Hand-grab initialisé pour la main ${this.data.hand}`);
     },
 
+=======
+        },
+
+    
+>>>>>>> origin/debut_jeu
     tick: function () {
         // Mettre à jour la position de la sphère de grab
         const handPos = new THREE.Vector3();
@@ -126,6 +182,7 @@ AFRAME.registerComponent('hand-grab', {
                 this.grabbedEl.body.angularVelocity.set(0, 0, 0);
             }
         }
+<<<<<<< HEAD
     },
 
     onPinchStart: function (evt) {
@@ -162,11 +219,51 @@ AFRAME.registerComponent('hand-grab', {
         }
     }
 });
+=======
+        },
+
+        onPinchStart: function (evt) {
+            if (this.grabbedEl) return; // Déjà en train de tenir quelque chose
+
+            // Chercher tous les objets attrapables
+            const grabbables = document.querySelectorAll('[grabbable]');
+
+            grabbables.forEach((el) => {
+                if (this.grabbedEl) return; // Déjà trouvé
+
+                const objPos = new THREE.Vector3();
+                el.object3D.getWorldPosition(objPos);
+
+                // Vérifier si l'objet est dans la sphère de grab
+                if (this.grabSphere.containsPoint(objPos)) {
+                    this.grabbedEl = el;
+
+                    // Émettre un événement sur l'objet
+                    el.emit('grab-start', { hand: this.data.hand });
+
+                    console.log(`✊ Objet attrapé: ${el.id || 'sans id'}`);
+                }
+            });
+        },
+
+        onPinchEnd: function (evt) {
+            if (this.grabbedEl) {
+                // Émettre un événement sur l'objet
+                this.grabbedEl.emit('grab-end', { hand: this.data.hand });
+
+                console.log(`🖐️ Objet relâché: ${this.grabbedEl.id || 'sans id'}`);
+                this.grabbedEl = null;
+            }
+        }
+    });
+}
+>>>>>>> origin/debut_jeu
 
 /* 
  * Composant : grabbable
  * Description : Marque un objet comme attrapable avec support de la physique
  */
+<<<<<<< HEAD
 AFRAME.registerComponent('grabbable', {
     init: function () {
         // Sauvegarder la couleur originale
@@ -252,6 +349,94 @@ AFRAME.registerComponent('grabbable', {
     },
 
     calculateAverageVelocity: function () {
+=======
+if (!AFRAME.components['grabbable']) {
+    AFRAME.registerComponent('grabbable', {
+        init: function () {
+            // Sauvegarder la couleur originale
+            this.originalColor = null;
+
+            // Pour calculer la vélocité de lancer (moyenne lissée)
+            this.previousPositions = [];
+            this.maxPositionHistory = 5; // Garder les 5 dernières positions
+            this.velocity = new THREE.Vector3();
+            this.isGrabbed = false;
+            this.originalBodyType = null;
+
+            // Attendre que le body physique soit prêt
+            this.el.addEventListener('body-loaded', () => {
+                console.log('🎯 Body physique chargé pour:', this.el.id || 'objet');
+            });
+
+            // Feedback visuel quand on attrape l'objet
+            this.el.addEventListener('grab-start', () => {
+                this.isGrabbed = true;
+                this.previousPositions = []; // Reset l'historique
+
+                const mat = this.el.getAttribute('material');
+                if (mat) {
+                    this.originalColor = mat.color || '#4CC3D9';
+                }
+                this.el.setAttribute('material', 'color', '#FFD700'); // Doré quand attrapé
+                this.el.setAttribute('material', 'emissive', '#FF8C00');
+
+                // Désactiver la physique pendant le grab
+                if (this.el.body) {
+                    this.originalBodyType = this.el.body.type;
+                    // KINEMATIC = 2, mais on préfère juste mettre mass à 0 et figer
+                    this.el.body.mass = 0;
+                    this.el.body.updateMassProperties();
+                    this.el.body.velocity.set(0, 0, 0);
+                    this.el.body.angularVelocity.set(0, 0, 0);
+                    // Mettre en mode "sleep" pour éviter les calculs
+                    this.el.body.type = 2; // KINEMATIC
+                    console.log('✊ Physique désactivée pour grab');
+                }
+            });
+
+            this.el.addEventListener('grab-end', () => {
+                // Calculer la vélocité finale avant de désactiver le grab
+                const finalVelocity = this.calculateAverageVelocity();
+
+                this.isGrabbed = false;
+
+                if (this.originalColor) {
+                    this.el.setAttribute('material', 'color', this.originalColor);
+                }
+                this.el.setAttribute('material', 'emissive', '#000000');
+
+                // Réactiver la physique et appliquer la vélocité de lancer
+                if (this.el.body) {
+                    // Remettre en DYNAMIC
+                    this.el.body.type = 1; // DYNAMIC
+                    this.el.body.mass = 1;
+                    this.el.body.updateMassProperties();
+
+                    // IMPORTANT: Réveiller le body
+                    this.el.body.wakeUp();
+
+                    // Appliquer la vélocité
+                    const throwMultiplier = 3; // Ajusté pour être plus réaliste
+                    const vx = finalVelocity.x * throwMultiplier;
+                    const vy = finalVelocity.y * throwMultiplier;
+                    const vz = finalVelocity.z * throwMultiplier;
+
+                    this.el.body.velocity.set(vx, vy, vz);
+
+                    // Ajouter un peu de rotation pour le réalisme
+                    this.el.body.angularVelocity.set(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2
+                    );
+
+                    console.log(`🚀 Lancé! Vélocité: (${vx.toFixed(2)}, ${vy.toFixed(2)}, ${vz.toFixed(2)})`);
+                }
+            });
+        },
+
+        calculateAverageVelocity: function () {
+>>>>>>> origin/debut_jeu
         if (this.previousPositions.length < 2) {
             return new THREE.Vector3(0, 0, 0);
         }
@@ -271,6 +456,7 @@ AFRAME.registerComponent('grabbable', {
             }
         }
 
+<<<<<<< HEAD
         const count = this.previousPositions.length - 1;
         avgVelocity.divideScalar(count);
 
@@ -296,3 +482,31 @@ AFRAME.registerComponent('grabbable', {
         }
     }
 });
+=======
+            const count = this.previousPositions.length - 1;
+            avgVelocity.divideScalar(count);
+
+            return avgVelocity;
+        },
+
+        tick: function (time, delta) {
+            // Enregistrer les positions pendant le grab pour calculer la vélocité
+            if (this.isGrabbed && delta > 0) {
+                const currentPosition = new THREE.Vector3();
+                this.el.object3D.getWorldPosition(currentPosition);
+
+                // Ajouter à l'historique
+                this.previousPositions.push({
+                    pos: currentPosition.clone(),
+                    time: time
+                });
+
+                // Garder seulement les N dernières positions
+                if (this.previousPositions.length > this.maxPositionHistory) {
+                    this.previousPositions.shift();
+                }
+            }
+        }
+    });
+}
+>>>>>>> origin/debut_jeu

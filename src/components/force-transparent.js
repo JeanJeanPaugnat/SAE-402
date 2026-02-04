@@ -20,4 +20,8 @@ AFRAME.registerComponent('force-transparent', {
             console.log('Force Transparent: Transparency enforced on renderer.');
         }
     }
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> origin/debut_jeu

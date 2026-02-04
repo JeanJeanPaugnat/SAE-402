@@ -244,4 +244,8 @@ AFRAME.registerComponent('ar-session', {
             this.startBtn.removeEventListener('click', this.onStartClick);
         }
     }
+<<<<<<< HEAD
 });
+=======
+});
+>>>>>>> origin/debut_jeu
