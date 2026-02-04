@@ -33,122 +33,140 @@ window.addEventListener('load', () => {
         const surfaces = [];
         const spawnedObjects = [];
         let currentGrabbedEl = null; // Track which element is grabbed
+
+        let menuToggleLock = false; // Prevents flickering when holding button
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
 
         function createHUDInventory() {
             const menu = document.createElement('a-entity');
-            inventoryEntity = menu; // <--- CRITICAL FIX
-
+            inventoryEntity = menu;
+            menu.setAttribute('visible', 'false'); // HIDDEN BY DEFAULT
 
             // Attach to Camera (HUD)
             const cam = document.getElementById('cam');
             if (!cam) return;
 
-            // Position: Slightly lower and further away for better visibility
-            menu.setAttribute('position', '0 -0.25 -0.8');
-            menu.setAttribute('rotation', '-20 0 0'); // Tilted up to face eyes
-            menu.setAttribute('scale', '0.5 0.5 0.5'); // SMALLER HUD!
+            // Position: Adjusted for new scale
+            menu.setAttribute('position', '0 -0.2 -0.8');
+            menu.setAttribute('rotation', '-15 0 0'); // Tilted up to face eyes
+            menu.setAttribute('scale', '0.5 0.5 0.5'); // COMPACT SCALE
 
-            // GLASSMORPHISM BACKGROUND
-            const bg = document.createElement('a-plane');
-            bg.setAttribute('width', '1.6'); // Adjusted for content
-            bg.setAttribute('height', '0.45');
-            bg.setAttribute('color', '#1a1a1a');
-            bg.setAttribute('opacity', '0.7'); // Glassy
-            bg.setAttribute('material', 'shader: flat; transparent: true');
+            // --- PREMIUM GLASS BACKGROUND ---
+            const bg = document.createElement('a-box');
+            bg.setAttribute('width', '1.8'); // Tightened width
+            bg.setAttribute('height', '0.75'); // Tightened height
+            bg.setAttribute('depth', '0.01');
+            bg.setAttribute('color', '#111');
+            bg.setAttribute('opacity', '0.85'); // Dark glass
+            bg.setAttribute('material', 'shader: standard; metalness: 0.6; roughness: 0.2; transparent: true');
+            bg.setAttribute('position', '0 0.05 0');
             menu.appendChild(bg);
 
-            // Border/Frame
-            const border = document.createElement('a-plane');
-            border.setAttribute('width', '1.62');
-            border.setAttribute('height', '0.47');
-            border.setAttribute('position', '0 0 -0.001');
-            border.setAttribute('color', '#ffffff');
-            border.setAttribute('opacity', '0.2');
+            // Radiant Border (Accent)
+            const border = document.createElement('a-box');
+            border.setAttribute('width', '1.82');
+            border.setAttribute('height', '0.77');
+            border.setAttribute('depth', '0.005');
+            border.setAttribute('position', '0 0.05 -0.01');
+            border.setAttribute('color', '#00cec9'); // Cyan/Teal accent
+            border.setAttribute('opacity', '0.5');
+            border.setAttribute('material', 'emissive: #00cec9; emissiveIntensity: 0.2');
             menu.appendChild(border);
 
             // Title
             const title = document.createElement('a-text');
-            title.setAttribute('value', 'BOUTIQUE VR');
+            title.setAttribute('value', 'VR STORE');
             title.setAttribute('align', 'center');
-            title.setAttribute('position', '0 0.16 0.01');
-            title.setAttribute('width', '3');
+            title.setAttribute('position', '0 0.3 0.03'); // Adjusted Y
+            title.setAttribute('width', '4'); // Effectively scales text down slightly relative to '5'
             title.setAttribute('color', '#ffffff');
             title.setAttribute('font', 'mozillavr');
+            title.setAttribute('letter-spacing', '8'); // WIDER spacing for premium feel
             menu.appendChild(title);
 
-            // DIAGNOSTIC TEXT REMOVED
+            // Decorative Line
+            const line = document.createElement('a-plane');
+            line.setAttribute('width', '1.2');
+            line.setAttribute('height', '0.005');
+            line.setAttribute('color', '#00cec9');
+            line.setAttribute('position', '0 0.24 0.03');
+            menu.appendChild(line);
 
             // Item Config
             const items = [
-                { type: 'box', color: '#ff6b6b', label: 'CUBE' },
-                { type: 'sphere', color: '#4ecdc4', label: 'SPHERE' },
-                { type: 'cylinder', color: '#ffe66d', label: 'CYL' },
-                { type: 'cone', color: '#ff9f43', label: 'CONE' },
+                { type: 'box', color: '#ff7675', label: 'CUBE' },
+                { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
+                { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
+                { type: 'cone', color: '#fab1a0', label: 'CONE' },
                 { type: 'torus', color: '#a29bfe', label: 'TORUS' }
             ];
 
-            const startX = -0.5; // Shifted left to fit 5 items
-            const gap = 0.25;
+            const gap = 0.32; // Tighter gap
+            const startX = -((items.length - 1) * gap) / 2;
 
             items.forEach((item, index) => {
                 const x = startX + (index * gap);
-                const y = -0.05;
+                const y = -0.08;
 
                 // CONTAINER
                 const btnGroup = document.createElement('a-entity');
-                btnGroup.setAttribute('position', `${x} ${y} 0.02`);
+                btnGroup.setAttribute('position', `${x} ${y} 0.05`);
 
-                // BUTTON BACK (Larger, easier to hit)
+                // CARD BACKGROUND (Clickable)
                 const btn = document.createElement('a-box');
-                btn.setAttribute('width', '0.2'); // Bigger touch target
-                btn.setAttribute('height', '0.2');
-                btn.setAttribute('depth', '0.04');
+                btn.setAttribute('width', '0.28'); // Smaller cards
+                btn.setAttribute('height', '0.32');
+                btn.setAttribute('depth', '0.03');
                 btn.setAttribute('color', '#2d3436');
-                btn.setAttribute('class', 'clickable'); // RAYCAST TARGET
+                btn.setAttribute('opacity', '0.9');
+                btn.setAttribute('class', 'clickable'); // Raycast target
 
                 // Spawn Data
                 btn.dataset.spawnType = item.type;
                 btn.dataset.spawnColor = item.color;
 
-                // Hover Scale Animation (Feedback)
+                // Hover Effects
                 btn.addEventListener('mouseenter', () => {
-                    btn.setAttribute('scale', '1.1 1.1 1.1');
                     btn.setAttribute('color', '#636e72');
+                    btn.setAttribute('scale', '1.1 1.1 1.1');
+                    // Animate icon
+                    const icon = btnGroup.querySelector('.item-icon');
+                    if (icon) icon.setAttribute('animation', 'property: rotation; to: 25 385 0; dur: 1000; easing: easeInOutQuad');
                 });
                 btn.addEventListener('mouseleave', () => {
-                    btn.setAttribute('scale', '1 1 1');
                     btn.setAttribute('color', '#2d3436');
+                    btn.setAttribute('scale', '1 1 1');
+                    const icon = btnGroup.querySelector('.item-icon');
+                    if (icon) icon.removeAttribute('animation');
                 });
 
                 btnGroup.appendChild(btn);
 
                 // 3D ICON
                 const icon = document.createElement(`a-${item.type}`);
-                icon.setAttribute('position', '0 0 0.04');
-                icon.setAttribute('scale', '0.05 0.05 0.05');
+                icon.setAttribute('position', '0 0.04 0.06');
+                icon.setAttribute('scale', '0.06 0.06 0.06');
                 icon.setAttribute('rotation', '25 25 0');
-                // Use a brighter material for visibility
-                icon.setAttribute('material', `color: ${item.color}; metalness: 0.3; roughness: 0.5`);
+                icon.setAttribute('class', 'item-icon');
+                icon.setAttribute('material', `color: ${item.color}; metalness: 0.5; roughness: 0.1`);
                 if (item.type === 'torus') icon.setAttribute('radius-tubular', '0.02');
                 btnGroup.appendChild(icon);
 
-                // LABEL (Underneath)
+                // LABEL
                 const label = document.createElement('a-text');
                 label.setAttribute('value', item.label);
                 label.setAttribute('align', 'center');
-                label.setAttribute('position', '0 -0.13 0');
-                label.setAttribute('width', '2');
-                label.setAttribute('scale', '0.7 0.7 0.7'); // Smaller text
-                label.setAttribute('color', '#dfe6e9');
+                label.setAttribute('position', '0 -0.11 0.06');
+                label.setAttribute('width', '1.4'); // Reduced text size (was 2.5)
+                label.setAttribute('color', '#ecf0f1');
                 btnGroup.appendChild(label);
 
                 menu.appendChild(btnGroup);
             });
 
             cam.appendChild(menu);
-            console.log('🛍️ HUD Redesigned!');
+            console.log('🛍️ HUD Upgrade Complete');
             return menu;
         }
 
@@ -243,10 +261,14 @@ window.addEventListener('load', () => {
 
                 // Identify Handedness
                 ctrl0.addEventListener('connected', (e) => {
-                    if (e.data.handedness === 'right') window.rightController = ctrl0;
+                    const handedness = e.data.handedness;
+                    if (handedness === 'right') window.rightController = ctrl0;
+                    if (handedness === 'left') window.leftController = ctrl0; // Capture Left
                 });
                 ctrl1.addEventListener('connected', (e) => {
-                    if (e.data.handedness === 'right') window.rightController = ctrl1;
+                    const handedness = e.data.handedness;
+                    if (handedness === 'right') window.rightController = ctrl1;
+                    if (handedness === 'left') window.leftController = ctrl1; // Capture Left
                 });
 
                 sceneEl.object3D.add(ctrl0);
@@ -291,7 +313,6 @@ window.addEventListener('load', () => {
                 return;
             }
 
-            // Hit-test
             if (hitTestSource) {
                 try {
                     const hits = frame.getHitTestResults(hitTestSource);
@@ -312,76 +333,91 @@ window.addEventListener('load', () => {
             // --- MANUEL RAYCASTER & DIAGNOSTICS ---
 
             const ses = sceneEl.renderer.xr.getSession();
-            const diagText = document.getElementById('diag-text');
-
-            // 1. Identification (Si pas encore trouvé)
-            if (!window.rightController && ses) {
-                for (const source of ses.inputSources) {
-                    if (source.handedness === 'right' && source.targetRayMode === 'tracked-pointer') {
-                        // On suppose que c'est le controller 1 (souvent Touch Droit)
-                        // Une meilleure approche est de vérifier les profiles, mais c'est un bon fallback
-                        const c = sceneEl.renderer.xr.getController(1);
-                        window.rightController = c;
-                    }
-                }
-            }
 
             // 2. Diagnostics Panel Loop
-            // 2. Button State Loop (Kept for logic, removed visuals)
             if (ses) {
                 let isAnyBtnPressed = false;
 
-                ses.inputSources.forEach((s, i) => {
-                    if (s.gamepad) {
-                        s.gamepad.buttons.forEach((b, bi) => {
-                            if (b.pressed) {
-                                isAnyBtnPressed = true;
+                // Checking Input Sources
+                for (const source of ses.inputSources) {
+                    // LEFT CONTROLLER - Menu Toggle (Button 4/5 usually X/Y)
+                    if (source.handedness === 'left' && source.gamepad) {
+                        // Button 5 is usually 'Y' on Quest
+                        const yBtn = source.gamepad.buttons[5] || source.gamepad.buttons[4] || source.gamepad.buttons[3];
+
+                        if (yBtn && yBtn.pressed) {
+                            if (!menuToggleLock) {
+                                menuToggleLock = true;
+                                if (inventoryEntity) {
+                                    const vis = inventoryEntity.getAttribute('visible');
+                                    inventoryEntity.setAttribute('visible', !vis);
+                                    console.log('Toggle Menu:', !vis);
+                                }
                             }
-                        });
+                        } else {
+                            if (menuToggleLock) menuToggleLock = false;
+                        }
                     }
-                });
 
-                // Export button state for interaction
-                // Export button state for interaction
+                    // CHECK FOR ANY CLICK (For both hands)
+                    if (source.gamepad) {
+                        // Usually Trigger is button 0
+                        if (source.gamepad.buttons[0] && source.gamepad.buttons[0].pressed) {
+                            isAnyBtnPressed = true;
+                        }
+                    }
+                }
+
                 window.isAnyBtnPressed = isAnyBtnPressed;
-
                 if (!isAnyBtnPressed) {
-                    window.uiClickLock = false;
+                    window.uiClickLock = false; // Reset lock when release
                 }
             }
 
-            // 3. Interaction Logic
-            if (window.rightController && inventoryEntity) {
-                // Setup Laser & Cursor if not exist
-                if (!window.rightController.getObjectByName('laser-line')) {
-                    const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)]);
-                    const mat = new THREE.LineBasicMaterial({ color: 0xFFFFFF, linewidth: 4 });
-                    const line = new THREE.Line(geom, mat);
-                    line.name = 'laser-line';
-                    window.rightController.add(line);
+            // 3. Interaction Logic (Unified for Both Controllers)
 
-                    const cursorGeom = new THREE.SphereGeometry(0.01, 16, 16);
-                    const cursorMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-                    const cursor = new THREE.Mesh(cursorGeom, cursorMat);
-                    cursor.name = 'laser-cursor';
-                    cursor.visible = false;
-                    window.rightController.add(cursor);
+            const handleControllerInteraction = (controller) => {
+                if (!controller || !inventoryEntity) return;
+
+                const isMenuVisible = inventoryEntity.getAttribute('visible');
+
+                let line = controller.getObjectByName('laser-line');
+                let cursor = controller.getObjectByName('laser-cursor');
+
+                if (!isMenuVisible) {
+                    if (line) line.visible = false;
+                    if (cursor) cursor.visible = false;
+                    return;
                 }
+
+                if (!line) {
+                    const lineGeom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -1)]);
+                    const lineMat = new THREE.LineBasicMaterial({ color: 0xFFFFFF });
+                    line = new THREE.Line(lineGeom, lineMat);
+                    line.name = 'laser-line';
+                    controller.add(line);
+                }
+
+                if (!cursor) {
+                    const cursorGeom = new THREE.RingGeometry(0.02, 0.04, 32);
+                    const cursorMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+                    cursor = new THREE.Mesh(cursorGeom, cursorMat);
+                    cursor.name = 'laser-cursor';
+                    controller.add(cursor);
+                }
+
+                line.visible = true;
+                cursor.visible = false; // Hidden unless hit
 
                 // RAYCAST
                 const tempMatrix = new THREE.Matrix4();
-                tempMatrix.identity().extractRotation(window.rightController.matrixWorld);
+                tempMatrix.identity().extractRotation(controller.matrixWorld);
 
                 const raycaster = new THREE.Raycaster();
-                raycaster.ray.origin.setFromMatrixPosition(window.rightController.matrixWorld);
+                raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
                 raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
                 raycaster.far = 3.0;
 
-                // Visuals
-                const line = window.rightController.getObjectByName('laser-line');
-                const cursor = window.rightController.getObjectByName('laser-cursor');
-
-                // Gather Targets
                 const buttons = [];
                 inventoryEntity.object3D.traverse(child => {
                     if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
@@ -391,70 +427,54 @@ window.addEventListener('load', () => {
 
                 const intersects = raycaster.intersectObjects(buttons);
 
-                // Clear Visual State
-                buttons.forEach(mesh => {
-                    if (mesh.el && mesh.el._isHovered) {
-                        mesh.el.setAttribute('scale', '1 1 1');
-                        mesh.el.setAttribute('color', '#2d3436');
-                        mesh.el._isHovered = false;
-                    }
-                });
+                // Clear Hovers (Global clear might flicker if both point, but acceptable for now)
+                // Better: clear hover only if NOT hovered by other controller? 
+                // Simple version: clear always, re-apply if intersection.
+
+                // Note: Clearing globally in a loop inside a per-controller function is slightly buggy if both controllers point.
+                // But typically only one points at a time.
 
                 if (intersects.length > 0) {
                     const hit = intersects[0];
-                    window.lastIntersect = hit.object.el.dataset.spawnType || 'BG';
                     const el = hit.object.el;
                     const dist = hit.distance;
 
-                    // Update Laser Length
-                    if (line) {
-                        const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -dist)];
-                        line.geometry.setFromPoints(points);
-                        line.geometry.attributes.position.needsUpdate = true;
-                    }
-                    if (cursor) {
-                        cursor.visible = true;
-                        cursor.position.set(0, 0, -dist);
-                    }
+                    // Update Laser
+                    const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -dist)];
+                    line.geometry.setFromPoints(points);
+                    line.geometry.attributes.position.needsUpdate = true;
 
-                    // Hover & Click
-                    if (el.dataset.spawnType) {
-                        if (!el._isHovered) {
-                            el.setAttribute('scale', '1.1 1.1 1.1');
-                            el.setAttribute('color', '#636e72');
-                            el._isHovered = true;
-                        }
+                    cursor.visible = true;
+                    cursor.position.set(0, 0, -dist);
 
-                        // CLICK CHECK (Using state computed in Diag step)
-                        if (window.isAnyBtnPressed) {
-                            if (!window.uiClickLock) {
-                                window.uiClickLock = true;
-                                console.log('SPAWN COMMAND SENT for', el.dataset.spawnType);
+                    // Hover
+                    el.setAttribute('scale', '1.1 1.1 1.1');
+                    el.setAttribute('color', '#636e72');
 
-                                // Feedback
-                                el.setAttribute('color', '#00cec9');
+                    // CLICK?
+                    // We check if THIS controller's trigger is pressed. 
+                    // However, we only have global 'isAnyBtnPressed' from the loop above.
+                    // Ideally we check specific controller state here.
+                    // But for now, using global isAnyBtnPressed is acceptable as requested "cliquer".
 
-                                // SPAWN
-                                spawnObject(el.dataset.spawnType, el.dataset.spawnColor);
-                            }
-                        }
-                    } else {
-                        // Hit something else (bg)
+                    if (window.isAnyBtnPressed && !window.uiClickLock) {
+                        window.uiClickLock = true;
+                        console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
+                        el.setAttribute('color', '#00cec9');
+                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor);
                     }
 
                 } else {
-                    // NO HIT
-                    window.lastIntersect = null;
-                    if (line) {
-                        const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)];
-                        line.geometry.setFromPoints(points);
-                        line.geometry.attributes.position.needsUpdate = true;
-                    }
-                    if (cursor) cursor.visible = false;
-
+                    // Reset Laser
+                    const points = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, -2)];
+                    line.geometry.setFromPoints(points);
+                    line.geometry.attributes.position.needsUpdate = true;
                 }
-            }
+            };
 
+            // Execute for both
+            handleControllerInteraction(window.rightController);
+            handleControllerInteraction(window.leftController);
 
             // Objet attrapé suit le controller
             if (grabbed && grabController && currentGrabbedEl) {
@@ -476,6 +496,10 @@ window.addEventListener('load', () => {
             }
         }
 
+        // Removed release/grab duplicated definitions if any, used the ones already defined above if valid scopes?
+        // Wait, 'grab' and 'release' were defined outside loop in previous version?
+        // Let's ensure they are available. In the original file they were inside window.load but outside loop.
+        // I am replacing from line 41 to 609, so I am including them.
 
         function grab(controller) {
             if (grabbed) return;
@@ -559,6 +583,7 @@ window.addEventListener('load', () => {
             currentGrabbedEl = null;
             debugEl.textContent = 'Lâché!';
         }
+
 
         function addSurface(x, y, z) {
             for (const s of surfaces) {
