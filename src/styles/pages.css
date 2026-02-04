@@ -1,0 +1,243 @@
+/* =============================================
+   PAGES.CSS - Styles pour About & Contact
+   ============================================= */
+
+/* Container de page */
+.page-container {
+    min-height: 100vh;
+    background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.5)), url('/bg-cafe.jpg');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Contenu principal */
+.page-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: white;
+    text-align: center;
+}
+
+/* Titre de page */
+.page-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: 3rem;
+    color: #FFD700;
+    text-shadow: 4px 4px 0px #8B4513;
+    margin-bottom: 30px;
+}
+
+/* Bloc de texte */
+.page-text {
+    max-width: 800px;
+    font-size: 1.2rem;
+    line-height: 1.8;
+    background: rgba(0,0,0,0.6);
+    padding: 30px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+.page-text h2 {
+    color: #F4A460;
+    margin: 20px 0 10px;
+    font-size: 1.5rem;
+}
+
+.page-text p {
+    margin-bottom: 15px;
+}
+
+/* Bouton retour */
+.back-btn {
+    display: inline-block;
+    margin-top: 30px;
+    padding: 15px 40px;
+    background: #8B4513;
+    color: white;
+    text-decoration: none;
+    border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+    box-shadow: 0px 5px 0px #5D2906;
+}
+
+.back-btn:hover {
+    transform: translateY(3px);
+    box-shadow: 0px 2px 0px #5D2906;
+    background: #a05218;
+}
+
+/* =============================================
+   ABOUT PAGE - Grille équipe
+   ============================================= */
+
+.team-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.team-member {
+    background: rgba(255,255,255,0.1);
+    padding: 15px;
+    border-radius: 10px;
+    width: 150px;
+}
+
+.team-member .emoji {
+    font-size: 3rem;
+}
+
+.team-member .name {
+    font-weight: bold;
+    color: #FFD700;
+    margin-top: 10px;
+}
+
+.team-member .role {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* =============================================
+   CONTACT PAGE - Formulaire
+   ============================================= */
+
+.contact-form {
+    max-width: 500px;
+    width: 100%;
+    background: rgba(0,0,0,0.6);
+    padding: 30px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #F4A460;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 15px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.9);
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+.form-group textarea {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: 3px solid #FFD700;
+}
+
+.submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: #8B4513;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0px 5px 0px #5D2906;
+}
+
+.submit-btn:hover {
+    transform: translateY(3px);
+    box-shadow: 0px 2px 0px #5D2906;
+    background: #a05218;
+}
+
+/* Infos de contact */
+.contact-info {
+    margin-top: 30px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 30px;
+}
+
+.contact-item {
+    background: rgba(255,255,255,0.1);
+    padding: 20px;
+    border-radius: 10px;
+    min-width: 150px;
+}
+
+.contact-item .icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.contact-item .label {
+    color: #F4A460;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.contact-item a {
+    color: white;
+    text-decoration: none;
+}
+
+.contact-item a:hover {
+    color: #FFD700;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+
+@media (max-width: 600px) {
+    .page-title {
+        font-size: 2rem;
+    }
+    
+    .page-text {
+        padding: 20px;
+        font-size: 1rem;
+    }
+    
+    .team-member {
+        width: 120px;
+    }
+    
+    .contact-form {
+        padding: 20px;
+    }
+    
+    .contact-info {
+        gap: 15px;
+    }
+    
+    .contact-item {
+        min-width: 100%;
+    }
+}

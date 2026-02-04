@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Changa+One:ital@0;1&display=swap');
+
 /* Force transparency everywhere to prevent white screen in AR */
 :root,
 html,
@@ -9,7 +11,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  font-family: 'Segoe UI', sans-serif;
+  font-family: 'Changa One', cursive;
 }
 
 /* UI Overlay Container - Positioned on top */
@@ -82,7 +84,7 @@ a-scene {
 }
 
 body {
-    font-family: 'Open Sans', sans-serif;
+    font-family: 'Changa One', cursive;
     overflow: hidden; /* Empêche le scroll pour l'immersion */
     height: 100vh;
     background-color: #333;
@@ -115,7 +117,7 @@ body {
 }
 
 .logo-text {
-    font-family: 'Fredoka One', cursive;
+    font-family: 'Changa One', cursive;
     font-size: 5rem;
     line-height: 0.9;
     color: #FFD700; /* Or jaune */
@@ -130,7 +132,7 @@ body {
 }
 
 .subtitle {
-    font-family: 'Fredoka One', cursive;
+    font-family: 'Changa One', cursive;
     font-size: 1.5rem;
     color: #F4A460;
     text-shadow: 2px 2px 0px #000;
@@ -140,7 +142,7 @@ body {
 }
 
 .headline {
-    font-size: 1.2rem;
+    font-size: 2rem;
     max-width: 600px;
     line-height: 1.5;
     text-shadow: 1px 1px 2px black;
@@ -149,7 +151,7 @@ body {
 
 /* BOUTON "BOIS" (STYLE JEU VIDÉO) */
 .wood-button {
-    font-family: 'Fredoka One', cursive;
+    font-family: 'Changa One', cursive;
     font-size: 2rem;
     color: #fff8dc; /* Crème */
     background: #8B4513; /* Marron bois */
@@ -240,7 +242,7 @@ body {
     justify-content: center;
     align-items: center;
     color: white;
-    font-family: 'Fredoka One', cursive;
+    font-family: 'Changa One', cursive;
 }
 
 /* Spinner simple pour le chargement */
