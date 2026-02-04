@@ -98,8 +98,8 @@ window.addEventListener('load', () => {
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
                 { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
-                { type: 'cone', color: '#fab1a0', label: 'CONE' },
-                { type: 'torus', color: '#a29bfe', label: 'TORUS' }
+                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', scale: '0.03 0.03 0.03' },
+                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.015 0.015 0.015' }
             ];
 
             const gap = 0.32; // Tighter gap
@@ -125,6 +125,7 @@ window.addEventListener('load', () => {
                 // Spawn Data
                 btn.dataset.spawnType = item.type;
                 btn.dataset.spawnColor = item.color;
+                if (item.model) btn.dataset.spawnModel = item.model;
 
                 // Hover Effects
                 btn.addEventListener('mouseenter', () => {
@@ -144,13 +145,20 @@ window.addEventListener('load', () => {
                 btnGroup.appendChild(btn);
 
                 // 3D ICON
-                const icon = document.createElement(`a-${item.type}`);
+                let icon;
+                if (item.type === 'gltf') {
+                    icon = document.createElement('a-entity');
+                    icon.setAttribute('gltf-model', `url(${item.model})`);
+                    icon.setAttribute('scale', item.scale || '0.03 0.03 0.03');
+                } else {
+                    icon = document.createElement(`a-${item.type}`);
+                    icon.setAttribute('scale', '0.06 0.06 0.06');
+                    icon.setAttribute('material', `color: ${item.color}; metalness: 0.5; roughness: 0.1`);
+                    if (item.type === 'torus') icon.setAttribute('radius-tubular', '0.02');
+                }
                 icon.setAttribute('position', '0 0.04 0.06');
-                icon.setAttribute('scale', '0.06 0.06 0.06');
                 icon.setAttribute('rotation', '25 25 0');
                 icon.setAttribute('class', 'item-icon');
-                icon.setAttribute('material', `color: ${item.color}; metalness: 0.5; roughness: 0.1`);
-                if (item.type === 'torus') icon.setAttribute('radius-tubular', '0.02');
                 btnGroup.appendChild(icon);
 
                 // LABEL
@@ -172,7 +180,7 @@ window.addEventListener('load', () => {
 
         let lastSpawnTime = 0;
 
-        function spawnObject(type, color) {
+        function spawnObject(type, color, model) {
             const now = Date.now();
             if (now - lastSpawnTime < 500) {
                 console.warn('⚠️ Spawn rate limited');
@@ -206,16 +214,10 @@ window.addEventListener('load', () => {
                     entity.setAttribute('radius', '0.06');
                     entity.setAttribute('height', '0.15');
                     break;
-                case 'cone':
-                    entity = document.createElement('a-cone');
-                    entity.setAttribute('radius-bottom', '0.08');
-                    entity.setAttribute('radius-top', '0');
-                    entity.setAttribute('height', '0.15');
-                    break;
-                case 'torus':
-                    entity = document.createElement('a-torus');
-                    entity.setAttribute('radius', '0.08');
-                    entity.setAttribute('radius-tubular', '0.02');
+                case 'gltf':
+                    entity = document.createElement('a-entity');
+                    entity.setAttribute('gltf-model', `url(${model})`);
+                    entity.setAttribute('scale', '0.4 0.4 0.4');
                     break;
                 case 'tetrahedron':
                     entity = document.createElement('a-tetrahedron');
@@ -461,7 +463,7 @@ window.addEventListener('load', () => {
                         window.uiClickLock = true;
                         console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
                         el.setAttribute('color', '#00cec9');
-                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor);
+                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel);
                     }
 
                 } else {
