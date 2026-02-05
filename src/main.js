@@ -37,28 +37,28 @@ window.addEventListener('load', () => {
         let menuToggleLock = false; // Prevents flickering when holding button
         let coffeeMachineLock = false; // Prevents multiple coffee spawns
         let coffeeAudio = null; // Audio element for coffee sound
-        
+
         // --- COFFEE MACHINE AUDIO SETUP ---
         function initCoffeeAudio() {
             coffeeAudio = new Audio('/sounds/public_assets_café.MP3');
             coffeeAudio.volume = 0.7;
         }
         initCoffeeAudio();
-        
+
         // --- SPAWN COFFEE CUP FUNCTION ---
         function spawnCoffeeCup(machineEntity) {
             if (!machineEntity || !machineEntity.object3D) return;
-            
+
             const machinePos = new THREE.Vector3();
             machineEntity.object3D.getWorldPosition(machinePos);
-            
+
             // Position à droite de la machine (offset de 0.15m sur X)
             const cupPos = {
                 x: machinePos.x + 0.15,
                 y: machinePos.y + 0.05, // Légèrement au dessus du sol
                 z: machinePos.z
             };
-            
+
             const cup = document.createElement('a-entity');
             cup.setAttribute('gltf-model', 'url(models/Coffee cup.glb)');
             cup.setAttribute('scale', '0.8 0.8 0.8');
@@ -66,35 +66,35 @@ window.addEventListener('load', () => {
             cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
             cup.setAttribute('class', 'clickable grabbable');
             cup.id = `coffee-cup-${Date.now()}`;
-            
+
             sceneEl.appendChild(cup);
             spawnedObjects.push(cup);
-            
+
             console.log('☕ Tasse de café créée à:', cupPos);
             if (debugEl) debugEl.textContent = '☕ Café prêt!';
         }
-        
+
         // --- COFFEE MACHINE INTERACTION ---
         function handleCoffeeMachineClick(machineEntity) {
             if (coffeeMachineLock) return; // Déjà en cours
             coffeeMachineLock = true;
-            
+
             console.log('☕ Machine à café activée!');
             if (debugEl) debugEl.textContent = '☕ Préparation du café...';
-            
+
             // Jouer le son
             if (coffeeAudio) {
                 coffeeAudio.currentTime = 0;
                 coffeeAudio.play().catch(e => console.log('Audio error:', e));
             }
-            
+
             // Attendre 1.5 secondes puis faire apparaître la tasse
             setTimeout(() => {
                 spawnCoffeeCup(machineEntity);
                 coffeeMachineLock = false; // Débloquer pour le prochain café
             }, 1500);
         }
-        
+
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
 
@@ -112,62 +112,68 @@ window.addEventListener('load', () => {
             menu.setAttribute('rotation', '-15 0 0'); // Tilted up to face eyes
             menu.setAttribute('scale', '0.5 0.5 0.5'); // COMPACT SCALE
 
-            // --- PREMIUM GLASS BACKGROUND ---
-            const bg = document.createElement('a-box');
-            bg.setAttribute('width', '1.8'); // Tightened width
-            bg.setAttribute('height', '0.75'); // Tightened height
-            bg.setAttribute('depth', '0.01');
-            bg.setAttribute('color', '#111');
-            bg.setAttribute('opacity', '0.85'); // Dark glass
-            bg.setAttribute('material', 'shader: standard; metalness: 0.6; roughness: 0.2; transparent: true');
-            bg.setAttribute('position', '0 0.05 0');
+            // --- SIMPLE BACKGROUND (Plane) ---
+            // Changed from Box to Plane to avoid Z-fighting/blocking issues
+            const bg = document.createElement('a-plane');
+            bg.setAttribute('width', '1.6');
+            bg.setAttribute('height', '1.4');
+            bg.setAttribute('color', '#000000');
+            bg.setAttribute('opacity', '0.6'); // More transparent
+            bg.setAttribute('shader', 'flat'); // Simple shader, no lighting issues
+            bg.setAttribute('position', '0 -0.05 -0.01'); // Behind items
             menu.appendChild(bg);
 
-            // Radiant Border (Accent)
-            const border = document.createElement('a-box');
-            border.setAttribute('width', '1.82');
-            border.setAttribute('height', '0.77');
-            border.setAttribute('depth', '0.005');
-            border.setAttribute('position', '0 0.05 -0.01');
-            border.setAttribute('color', '#00cec9'); // Cyan/Teal accent
-            border.setAttribute('opacity', '0.5');
-            border.setAttribute('material', 'emissive: #00cec9; emissiveIntensity: 0.2');
-            menu.appendChild(border);
+            // Removed "Border" box to simplify view
 
             // Title
             const title = document.createElement('a-text');
             title.setAttribute('value', 'VR STORE');
             title.setAttribute('align', 'center');
-            title.setAttribute('position', '0 0.3 0.03'); // Adjusted Y
-            title.setAttribute('width', '4'); // Effectively scales text down slightly relative to '5'
+            title.setAttribute('position', '0 0.55 0.03'); // Top
+            title.setAttribute('width', '4');
             title.setAttribute('color', '#ffffff');
             title.setAttribute('font', 'mozillavr');
-            title.setAttribute('letter-spacing', '8'); // WIDER spacing for premium feel
+            title.setAttribute('letter-spacing', '2');
             menu.appendChild(title);
 
             // Decorative Line
             const line = document.createElement('a-plane');
-            line.setAttribute('width', '1.2');
-            line.setAttribute('height', '0.005');
+            line.setAttribute('width', '1.0');
+            line.setAttribute('height', '0.003');
             line.setAttribute('color', '#00cec9');
-            line.setAttribute('position', '0 0.24 0.03');
+            line.setAttribute('position', '0 0.48 0.03');
             menu.appendChild(line);
 
-            // Item Config
+            // Item Config - 10 Custom Models
             const items = [
+                // Row 1: Primitives + Basics
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
-                { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
-                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', scale: '0.03 0.03 0.03' },
-                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.1 0.1 0.1' }
+                { type: 'gltf', label: 'MACHINE', model: 'models/Coffee%20Machine.glb', color: '#fff', scale: '0.3 0.3 0.3' },
+                { type: 'gltf', label: 'TRASH', model: 'models/Trashcan%20Small.glb', color: '#fff', scale: '0.4 0.4 0.4' },
+
+                // Row 2
+                { type: 'gltf', label: 'SPEAKER', model: 'models/Bass%20Speakers.glb', color: '#fff', scale: '0.8 0.8 0.8' },
+                { type: 'gltf', label: 'BROOM', model: 'models/Broom.glb', color: '#fff', scale: '0.1 0.1 0.1' },
+                { type: 'gltf', label: 'REGISTER', model: 'models/Cash%20register.glb', color: '#fff', scale: '0.15 0.15 0.15' },
+                // Row 3
+                { type: 'gltf', label: 'SIGN', model: 'models/Coffee%20sign.glb', color: '#fff', scale: '0.4 0.4 0.4' },
+                { type: 'gltf', label: 'COUCH', model: 'models/Couch.glb', color: '#fff', scale: '0.005 0.005 0.005' },
+                { type: 'gltf', label: 'PLANT', model: 'models/Houseplant.glb', color: '#fff', scale: '0.4 0.4 0.4' },
+                { type: 'gltf', label: 'RUG', model: 'models/Rug.glb', color: '#fff', scale: '0.005 0.005 0.005' }
             ];
 
-            const gap = 0.32; // Tighter gap
-            const startX = -((items.length - 1) * gap) / 2;
+            const gap = 0.35;
+            const itemsPerRow = 4;
+            const startX = -((itemsPerRow - 1) * gap) / 2;
 
             items.forEach((item, index) => {
-                const x = startX + (index * gap);
-                const y = -0.08;
+                const row = Math.floor(index / itemsPerRow);
+                const col = index % itemsPerRow;
+
+                const x = startX + (col * gap);
+                // Row 0: 0.25, Row 1: -0.15, Row 2: -0.55
+                const y = 0.25 - (row * 0.4);
 
                 // CONTAINER
                 const btnGroup = document.createElement('a-entity');
@@ -175,25 +181,25 @@ window.addEventListener('load', () => {
 
                 // CARD BACKGROUND (Clickable)
                 const btn = document.createElement('a-box');
-                btn.setAttribute('width', '0.28'); // Smaller cards
+                btn.setAttribute('width', '0.28');
                 btn.setAttribute('height', '0.32');
-                btn.setAttribute('depth', '0.03');
+                btn.setAttribute('depth', '0.02');
                 btn.setAttribute('color', '#2d3436');
                 btn.setAttribute('opacity', '0.9');
-                btn.setAttribute('class', 'clickable'); // Raycast target
+                btn.setAttribute('class', 'clickable');
 
                 // Spawn Data
                 btn.dataset.spawnType = item.type;
                 btn.dataset.spawnColor = item.color;
-                if (item.model) btn.dataset.spawnModel = item.model;
+                btn.dataset.spawnModel = item.model;
+                btn.dataset.spawnScale = item.scale;
 
                 // Hover Effects
                 btn.addEventListener('mouseenter', () => {
                     btn.setAttribute('color', '#636e72');
                     btn.setAttribute('scale', '1.1 1.1 1.1');
-                    // Animate icon
                     const icon = btnGroup.querySelector('.item-icon');
-                    if (icon) icon.setAttribute('animation', 'property: rotation; to: 25 385 0; dur: 1000; easing: easeInOutQuad');
+                    if (icon) icon.setAttribute('animation', 'property: rotation; to: 25 385 0; dur: 800; easing: easeInOutQuad');
                 });
                 btn.addEventListener('mouseleave', () => {
                     btn.setAttribute('color', '#2d3436');
@@ -204,18 +210,24 @@ window.addEventListener('load', () => {
 
                 btnGroup.appendChild(btn);
 
-                // 3D ICON
+                // 3D ICON (Preview)
+                // 3D ICON (Preview)
                 let icon;
                 if (item.type === 'gltf') {
-                    icon = document.createElement('a-entity');
-                    icon.setAttribute('gltf-model', `url(${item.model})`);
-                    icon.setAttribute('scale', item.scale || '0.03 0.03 0.03');
+                    // SAFE MODE: Use a simple cube for all GLTF items in the menu
+                    // This prevents "camera occlusion" from models with bad origins/scales
+                    icon = document.createElement('a-box');
+                    icon.setAttribute('width', '1');
+                    icon.setAttribute('height', '1');
+                    icon.setAttribute('depth', '1');
+                    icon.setAttribute('scale', '0.04 0.04 0.04');
+                    icon.setAttribute('material', 'color: #74b9ff;  metalness: 0.5; roughness: 0.2');
                 } else {
                     icon = document.createElement(`a-${item.type}`);
                     icon.setAttribute('scale', '0.06 0.06 0.06');
                     icon.setAttribute('material', `color: ${item.color}; metalness: 0.5; roughness: 0.1`);
-                    if (item.type === 'torus') icon.setAttribute('radius-tubular', '0.02');
                 }
+
                 icon.setAttribute('position', '0 0.04 0.06');
                 icon.setAttribute('rotation', '25 25 0');
                 icon.setAttribute('class', 'item-icon');
@@ -226,21 +238,21 @@ window.addEventListener('load', () => {
                 label.setAttribute('value', item.label);
                 label.setAttribute('align', 'center');
                 label.setAttribute('position', '0 -0.11 0.06');
-                label.setAttribute('width', '1.4'); // Reduced text size (was 2.5)
-                label.setAttribute('color', '#ecf0f1');
+                label.setAttribute('width', '1.4');
+                label.setAttribute('color', '#dfe6e9');
                 btnGroup.appendChild(label);
 
                 menu.appendChild(btnGroup);
             });
 
             cam.appendChild(menu);
-            console.log('🛍️ HUD Upgrade Complete');
+            console.log('🛍️ HUD Upgrade Complete: Custom Models');
             return menu;
         }
 
         let lastSpawnTime = 0;
 
-        function spawnObject(type, color, model) {
+        function spawnObject(type, color, model, scale = '0.4 0.4 0.4') {
             const now = Date.now();
             if (now - lastSpawnTime < 500) {
                 console.warn('⚠️ Spawn rate limited');
@@ -277,7 +289,7 @@ window.addEventListener('load', () => {
                 case 'gltf':
                     entity = document.createElement('a-entity');
                     entity.setAttribute('gltf-model', `url(${model})`);
-                    entity.setAttribute('scale', '0.4 0.4 0.4');
+                    entity.setAttribute('scale', scale);
                     break;
                 case 'tetrahedron':
                     entity = document.createElement('a-tetrahedron');
@@ -425,19 +437,19 @@ window.addEventListener('load', () => {
                     if (source.handedness === 'right' && source.gamepad) {
                         // Button 5 is usually 'B' on Quest (or 4/3 depending on mapping)
                         const bBtn = source.gamepad.buttons[5] || source.gamepad.buttons[4];
-                        
+
                         if (bBtn && bBtn.pressed && !coffeeMachineLock) {
                             // Raycast from right controller to detect coffee machine
                             const rightCtrl = window.rightController;
                             if (rightCtrl) {
                                 const tempMatrix = new THREE.Matrix4();
                                 tempMatrix.identity().extractRotation(rightCtrl.matrixWorld);
-                                
+
                                 const raycaster = new THREE.Raycaster();
                                 raycaster.ray.origin.setFromMatrixPosition(rightCtrl.matrixWorld);
                                 raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
                                 raycaster.far = 5.0; // 5 mètres de portée
-                                
+
                                 // Find all coffee machines in spawnedObjects
                                 const coffeeMachines = [];
                                 spawnedObjects.forEach(obj => {
@@ -454,9 +466,9 @@ window.addEventListener('load', () => {
                                         }
                                     }
                                 });
-                                
+
                                 const intersects = raycaster.intersectObjects(coffeeMachines);
-                                
+
                                 if (intersects.length > 0) {
                                     const hitEntity = intersects[0].object.el;
                                     if (hitEntity) {
@@ -569,7 +581,7 @@ window.addEventListener('load', () => {
                         window.uiClickLock = true;
                         console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
                         el.setAttribute('color', '#00cec9');
-                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel);
+                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel, el.dataset.spawnScale);
                     }
 
                 } else {
