@@ -61,7 +61,7 @@ window.addEventListener('load', () => {
             
             const cup = document.createElement('a-entity');
             cup.setAttribute('gltf-model', 'url(models/Coffee cup.glb)');
-            cup.setAttribute('scale', '0.8 0.8 0.8');
+            cup.setAttribute('scale', '0.08 0.08 0.08');
             cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
             cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
             cup.setAttribute('class', 'clickable grabbable');
@@ -93,6 +93,185 @@ window.addEventListener('load', () => {
                 spawnCoffeeCup(machineEntity);
                 coffeeMachineLock = false; // Débloquer pour le prochain café
             }, 1500);
+        }
+        
+        // --- TRASHCAN DELETION SYSTEM ---
+        const trashcans = []; // Liste des poubelles dans la scène
+        const TRASH_RADIUS = 0.2; // Rayon de détection pour la suppression
+        
+        function removeObjectFromScene(objEl) {
+            if (!objEl || !objEl.parentNode) return;
+            
+            // Remove from spawnedObjects array
+            const idx = spawnedObjects.indexOf(objEl);
+            if (idx > -1) {
+                spawnedObjects.splice(idx, 1);
+            }
+            
+            // Remove physics body if exists
+            if (objEl.body) {
+                objEl.body.world.removeBody(objEl.body);
+            }
+            
+            // Remove from scene
+            objEl.parentNode.removeChild(objEl);
+            
+            console.log('🗑️ Objet supprimé par la poubelle!');
+            if (debugEl) debugEl.textContent = '🗑️ Objet jeté!';
+        }
+        
+        function checkTrashcanCollisions() {
+            if (trashcans.length === 0) return;
+            
+            const trashPos = new THREE.Vector3();
+            const objPos = new THREE.Vector3();
+            
+            // Pour chaque poubelle
+            trashcans.forEach(trashcan => {
+                if (!trashcan || !trashcan.object3D) return;
+                trashcan.object3D.getWorldPosition(trashPos);
+                
+                // Vérifier chaque objet spawned (sauf les poubelles elles-mêmes)
+                const objectsToCheck = [...spawnedObjects].filter(obj => 
+                    obj && !obj.classList.contains('trashcan')
+                );
+                
+                objectsToCheck.forEach(obj => {
+                    if (!obj || !obj.object3D) return;
+                    obj.object3D.getWorldPosition(objPos);
+                    
+                    const distance = trashPos.distanceTo(objPos);
+                    
+                    if (distance < TRASH_RADIUS) {
+                        removeObjectFromScene(obj);
+                    }
+                });
+                
+                // Vérifier aussi le cube de base
+                if (cubeEl && cubeEl.object3D) {
+                    cubeEl.object3D.getWorldPosition(objPos);
+                    const distance = trashPos.distanceTo(objPos);
+                    if (distance < TRASH_RADIUS) {
+                        removeObjectFromScene(cubeEl);
+                    }
+                }
+            });
+        }
+        
+        // --- WELCOME PANEL (Intro Screen) ---
+        let welcomePanel = null;
+        
+        function createWelcomePanel() {
+            const cam = document.getElementById('cam');
+            if (!cam) return;
+            
+            welcomePanel = document.createElement('a-entity');
+            welcomePanel.setAttribute('position', '0 0 -1.2'); // 1.2m devant la caméra
+            welcomePanel.setAttribute('rotation', '0 0 0');
+            
+            // --- PAPER BACKGROUND ---
+            const paper = document.createElement('a-plane');
+            paper.setAttribute('width', '0.84');
+            paper.setAttribute('height', '1.02');
+            paper.setAttribute('color', '#f5f0e1'); // Couleur papier vieilli
+            paper.setAttribute('material', 'shader: flat; side: double');
+            paper.setAttribute('position', '0 0 0');
+            // Légère rotation pour effet manuscrit
+            paper.setAttribute('rotation', '0 0 -2');
+            welcomePanel.appendChild(paper);
+            
+            // --- PAPER BORDER (Shadow effect) ---
+            const shadow = document.createElement('a-plane');
+            shadow.setAttribute('width', '0.86');
+            shadow.setAttribute('height', '1.04');
+            shadow.setAttribute('color', '#8b7355');
+            shadow.setAttribute('opacity', '0.3');
+            shadow.setAttribute('position', '0.01 -0.01 -0.01');
+            shadow.setAttribute('rotation', '0 0 -2');
+            welcomePanel.appendChild(shadow);
+            
+            // --- TITLE ---
+            const title = document.createElement('a-text');
+            title.setAttribute('value', '~ HOLO BARISTA ~');
+            title.setAttribute('align', 'center');
+            title.setAttribute('position', '0 0.6 0.01');
+            title.setAttribute('width', '1.5');
+            title.setAttribute('color', '#2d1810'); // Brun foncé
+            title.setAttribute('font', 'mozillavr');
+            welcomePanel.appendChild(title);
+            
+            // --- DECORATIVE LINE ---
+            const line = document.createElement('a-plane');
+            line.setAttribute('width', '0.5');
+            line.setAttribute('height', '0.003');
+            line.setAttribute('color', '#8b4513');
+            line.setAttribute('position', '0 0.16 0.01');
+            welcomePanel.appendChild(line);
+            
+            // --- INTRO TEXT ---
+            const introText = document.createElement('a-text');
+            introText.setAttribute('value', 
+                'Welcome to Holo Barista!\\n\\n' +
+                'You are the barista of a virtual coffee shop.\\n' +
+                'Your mission: serve delicious coffee!\\n\\n' +
+                '~ HOW TO PLAY ~\\n\\n' +
+                '1. Press Y to open the VR Store\\n' +
+                '2. Place a Coffee Machine\\n' +
+                '3. Point at it and press B to brew\\n' +
+                '4. Grab the cup and serve!\\n' +
+                '5. Use the Trash to clean up\\n\\n' +
+                'Good luck, barista!'
+            );
+            introText.setAttribute('align', 'center');
+            introText.setAttribute('position', '0 -0.02 0.01');
+            introText.setAttribute('width', '1.1');
+            introText.setAttribute('color', '#3d2914');
+            introText.setAttribute('line-height', '55');
+            welcomePanel.appendChild(introText);
+            
+            // --- CLOSE BUTTON ---
+            const closeBtn = document.createElement('a-box');
+            closeBtn.setAttribute('width', '0.2');
+            closeBtn.setAttribute('height', '0.06');
+            closeBtn.setAttribute('depth', '0.02');
+            closeBtn.setAttribute('color', '#8b4513');
+            closeBtn.setAttribute('position', '0 -0.6 0.02');
+            closeBtn.setAttribute('class', 'clickable');
+            closeBtn.id = 'welcome-close-btn';
+            
+            // Button text
+            const closeTxt = document.createElement('a-text');
+            closeTxt.setAttribute('value', 'START');
+            closeTxt.setAttribute('align', 'center');
+            closeTxt.setAttribute('position', '0 0.01 0.02');
+            closeTxt.setAttribute('width', '1.2');
+            closeTxt.setAttribute('color', '#f5f0e1');
+            closeBtn.appendChild(closeTxt);
+            
+            // Hover effect
+            closeBtn.addEventListener('mouseenter', () => {
+                closeBtn.setAttribute('color', '#a0522d');
+                closeBtn.setAttribute('scale', '1.1 1.1 1.1');
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+                closeBtn.setAttribute('color', '#8b4513');
+                closeBtn.setAttribute('scale', '1 1 1');
+            });
+            
+            welcomePanel.appendChild(closeBtn);
+            
+            cam.appendChild(welcomePanel);
+            console.log('📜 Welcome Panel Created');
+            
+            return welcomePanel;
+        }
+        
+        function closeWelcomePanel() {
+            if (welcomePanel && welcomePanel.parentNode) {
+                welcomePanel.parentNode.removeChild(welcomePanel);
+                welcomePanel = null;
+                console.log('📜 Welcome Panel Closed');
+            }
         }
         
         // --- 3D INVENTORY HUD (Attached to Camera) ---
@@ -154,12 +333,14 @@ window.addEventListener('load', () => {
             menu.appendChild(line);
 
             // Item Config
+            // menuScale = taille dans le menu HUD (petit pour l'aperçu)
+            // spawnScale = taille réelle dans la scène 3D
             const items = [
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
                 { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
-                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', scale: '0.03 0.03 0.03' },
-                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.1 0.1 0.1' }
+                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', menuScale: '0.2 0.2 0.2', spawnScale: '0.4 0.4 0.4' },
+                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', menuScale: '0.2 0.2 0.2', spawnScale: '0.5 0.5 0.5' }
             ];
 
             const gap = 0.32; // Tighter gap
@@ -186,6 +367,7 @@ window.addEventListener('load', () => {
                 btn.dataset.spawnType = item.type;
                 btn.dataset.spawnColor = item.color;
                 if (item.model) btn.dataset.spawnModel = item.model;
+                if (item.spawnScale) btn.dataset.spawnScale = item.spawnScale; // Taille de spawn
 
                 // Hover Effects
                 btn.addEventListener('mouseenter', () => {
@@ -209,7 +391,7 @@ window.addEventListener('load', () => {
                 if (item.type === 'gltf') {
                     icon = document.createElement('a-entity');
                     icon.setAttribute('gltf-model', `url(${item.model})`);
-                    icon.setAttribute('scale', item.scale || '0.03 0.03 0.03');
+                    icon.setAttribute('scale', item.menuScale || '0.08 0.08 0.08'); // Taille dans le menu
                 } else {
                     icon = document.createElement(`a-${item.type}`);
                     icon.setAttribute('scale', '0.06 0.06 0.06');
@@ -240,7 +422,7 @@ window.addEventListener('load', () => {
 
         let lastSpawnTime = 0;
 
-        function spawnObject(type, color, model) {
+        function spawnObject(type, color, model, customScale) {
             const now = Date.now();
             if (now - lastSpawnTime < 500) {
                 console.warn('⚠️ Spawn rate limited');
@@ -256,9 +438,11 @@ window.addEventListener('load', () => {
             cam.object3D.getWorldPosition(camPos);
             cam.object3D.getWorldDirection(camDir);
 
-            // Spawn 1.5m in front of camera (POSITIVE SCALAR!)
-            const spawnPos = camPos.clone().add(camDir.multiplyScalar(1.5));
-            spawnPos.y = Math.max(spawnPos.y, 0.5); // At least 50cm from ground to be visible
+            // Spawn 1.5m in front of camera
+            // getWorldDirection retourne la direction vers laquelle on regarde (axe -Z)
+            // On utilise cette direction directement, mais on inverse si nécessaire
+            const spawnPos = camPos.clone().add(camDir.multiplyScalar(-1.5)); // Négatif car cam regarde vers -Z
+            spawnPos.y = Math.max(spawnPos.y, 0.1); // Au moins 10cm du sol
 
             console.log('✨ SPAWNING at:', spawnPos);
 
@@ -277,7 +461,8 @@ window.addEventListener('load', () => {
                 case 'gltf':
                     entity = document.createElement('a-entity');
                     entity.setAttribute('gltf-model', `url(${model})`);
-                    entity.setAttribute('scale', '0.4 0.4 0.4');
+                    // Utiliser le scale personnalisé ou un défaut de 0.1
+                    entity.setAttribute('scale', customScale || '0.1 0.1 0.1');
                     break;
                 case 'tetrahedron':
                     entity = document.createElement('a-tetrahedron');
@@ -295,6 +480,12 @@ window.addEventListener('load', () => {
             entity.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
             entity.setAttribute('class', 'clickable grabbable');
             entity.id = `spawned-${now}`;
+            
+            // Si c'est une poubelle, l'ajouter à la liste des trashcans (mais garde la même physique)
+            if (model && model.includes('Trashcan')) {
+                entity.classList.add('trashcan');
+                trashcans.push(entity);
+            }
 
             sceneEl.appendChild(entity);
             spawnedObjects.push(entity);
@@ -341,10 +532,13 @@ window.addEventListener('load', () => {
                 ctrl1.addEventListener('selectstart', () => grab(ctrl1));
                 ctrl1.addEventListener('selectend', release);
 
-                // CREATE HUD MENU IMMEDIATELY
+                // CREATE WELCOME PANEL FIRST
+                createWelcomePanel();
+                
+                // CREATE HUD MENU (but hidden)
                 createHUDInventory();
 
-                debugEl.textContent = 'AR OK! Regarde en bas';
+                debugEl.textContent = 'AR OK! Read the instructions';
 
                 // Setup hit-test après délai
                 setTimeout(async () => {
@@ -391,6 +585,9 @@ window.addEventListener('load', () => {
                     }
                 } catch (e) { }
             }
+
+            // --- TRASHCAN COLLISION CHECK ---
+            checkTrashcanCollisions();
 
             // --- MANUEL RAYCASTER & DIAGNOSTICS ---
 
@@ -485,14 +682,16 @@ window.addEventListener('load', () => {
             // 3. Interaction Logic (Unified for Both Controllers)
 
             const handleControllerInteraction = (controller) => {
-                if (!controller || !inventoryEntity) return;
+                if (!controller) return;
 
-                const isMenuVisible = inventoryEntity.getAttribute('visible');
+                const isMenuVisible = inventoryEntity && inventoryEntity.getAttribute('visible');
+                const isWelcomeVisible = welcomePanel !== null;
 
                 let line = controller.getObjectByName('laser-line');
                 let cursor = controller.getObjectByName('laser-cursor');
 
-                if (!isMenuVisible) {
+                // Hide laser if neither menu nor welcome panel is visible
+                if (!isMenuVisible && !isWelcomeVisible) {
                     if (line) line.visible = false;
                     if (cursor) cursor.visible = false;
                     return;
@@ -527,11 +726,24 @@ window.addEventListener('load', () => {
                 raycaster.far = 3.0;
 
                 const buttons = [];
-                inventoryEntity.object3D.traverse(child => {
-                    if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
-                        buttons.push(child);
-                    }
-                });
+                
+                // Search in inventory menu
+                if (inventoryEntity && inventoryEntity.object3D) {
+                    inventoryEntity.object3D.traverse(child => {
+                        if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
+                            buttons.push(child);
+                        }
+                    });
+                }
+                
+                // Search in welcome panel
+                if (welcomePanel && welcomePanel.object3D) {
+                    welcomePanel.object3D.traverse(child => {
+                        if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
+                            buttons.push(child);
+                        }
+                    });
+                }
 
                 const intersects = raycaster.intersectObjects(buttons);
 
@@ -567,9 +779,18 @@ window.addEventListener('load', () => {
 
                     if (window.isAnyBtnPressed && !window.uiClickLock) {
                         window.uiClickLock = true;
-                        console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
-                        el.setAttribute('color', '#00cec9');
-                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel);
+                        
+                        // Check if it's the welcome panel close button
+                        if (el.id === 'welcome-close-btn') {
+                            console.log('📜 Closing Welcome Panel');
+                            closeWelcomePanel();
+                        } 
+                        // Otherwise it's a spawn button
+                        else if (el.dataset.spawnType) {
+                            console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
+                            el.setAttribute('color', '#00cec9');
+                            spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel, el.dataset.spawnScale);
+                        }
                     }
 
                 } else {
