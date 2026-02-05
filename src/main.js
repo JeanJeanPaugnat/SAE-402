@@ -158,6 +158,122 @@ window.addEventListener('load', () => {
             });
         }
         
+        // --- WELCOME PANEL (Intro Screen) ---
+        let welcomePanel = null;
+        
+        function createWelcomePanel() {
+            const cam = document.getElementById('cam');
+            if (!cam) return;
+            
+            welcomePanel = document.createElement('a-entity');
+            welcomePanel.setAttribute('position', '0 0 -1.2'); // 1.2m devant la caméra
+            welcomePanel.setAttribute('rotation', '0 0 0');
+            
+            // --- PAPER BACKGROUND ---
+            const paper = document.createElement('a-plane');
+            paper.setAttribute('width', '0.84');
+            paper.setAttribute('height', '1.02');
+            paper.setAttribute('color', '#f5f0e1'); // Couleur papier vieilli
+            paper.setAttribute('material', 'shader: flat; side: double');
+            paper.setAttribute('position', '0 0 0');
+            // Légère rotation pour effet manuscrit
+            paper.setAttribute('rotation', '0 0 -2');
+            welcomePanel.appendChild(paper);
+            
+            // --- PAPER BORDER (Shadow effect) ---
+            const shadow = document.createElement('a-plane');
+            shadow.setAttribute('width', '0.86');
+            shadow.setAttribute('height', '1.04');
+            shadow.setAttribute('color', '#8b7355');
+            shadow.setAttribute('opacity', '0.3');
+            shadow.setAttribute('position', '0.01 -0.01 -0.01');
+            shadow.setAttribute('rotation', '0 0 -2');
+            welcomePanel.appendChild(shadow);
+            
+            // --- TITLE ---
+            const title = document.createElement('a-text');
+            title.setAttribute('value', '~ HOLO BARISTA ~');
+            title.setAttribute('align', 'center');
+            title.setAttribute('position', '0 0.6 0.01');
+            title.setAttribute('width', '1.5');
+            title.setAttribute('color', '#2d1810'); // Brun foncé
+            title.setAttribute('font', 'mozillavr');
+            welcomePanel.appendChild(title);
+            
+            // --- DECORATIVE LINE ---
+            const line = document.createElement('a-plane');
+            line.setAttribute('width', '0.5');
+            line.setAttribute('height', '0.003');
+            line.setAttribute('color', '#8b4513');
+            line.setAttribute('position', '0 0.16 0.01');
+            welcomePanel.appendChild(line);
+            
+            // --- INTRO TEXT ---
+            const introText = document.createElement('a-text');
+            introText.setAttribute('value', 
+                'Welcome to Holo Barista!\\n\\n' +
+                'You are the barista of a virtual coffee shop.\\n' +
+                'Your mission: serve delicious coffee!\\n\\n' +
+                '~ HOW TO PLAY ~\\n\\n' +
+                '1. Press Y to open the VR Store\\n' +
+                '2. Place a Coffee Machine\\n' +
+                '3. Point at it and press B to brew\\n' +
+                '4. Grab the cup and serve!\\n' +
+                '5. Use the Trash to clean up\\n\\n' +
+                'Good luck, barista!'
+            );
+            introText.setAttribute('align', 'center');
+            introText.setAttribute('position', '0 -0.02 0.01');
+            introText.setAttribute('width', '1.1');
+            introText.setAttribute('color', '#3d2914');
+            introText.setAttribute('line-height', '55');
+            welcomePanel.appendChild(introText);
+            
+            // --- CLOSE BUTTON ---
+            const closeBtn = document.createElement('a-box');
+            closeBtn.setAttribute('width', '0.2');
+            closeBtn.setAttribute('height', '0.06');
+            closeBtn.setAttribute('depth', '0.02');
+            closeBtn.setAttribute('color', '#8b4513');
+            closeBtn.setAttribute('position', '0 -0.6 0.02');
+            closeBtn.setAttribute('class', 'clickable');
+            closeBtn.id = 'welcome-close-btn';
+            
+            // Button text
+            const closeTxt = document.createElement('a-text');
+            closeTxt.setAttribute('value', 'START');
+            closeTxt.setAttribute('align', 'center');
+            closeTxt.setAttribute('position', '0 0.01 0.02');
+            closeTxt.setAttribute('width', '1.2');
+            closeTxt.setAttribute('color', '#f5f0e1');
+            closeBtn.appendChild(closeTxt);
+            
+            // Hover effect
+            closeBtn.addEventListener('mouseenter', () => {
+                closeBtn.setAttribute('color', '#a0522d');
+                closeBtn.setAttribute('scale', '1.1 1.1 1.1');
+            });
+            closeBtn.addEventListener('mouseleave', () => {
+                closeBtn.setAttribute('color', '#8b4513');
+                closeBtn.setAttribute('scale', '1 1 1');
+            });
+            
+            welcomePanel.appendChild(closeBtn);
+            
+            cam.appendChild(welcomePanel);
+            console.log('📜 Welcome Panel Created');
+            
+            return welcomePanel;
+        }
+        
+        function closeWelcomePanel() {
+            if (welcomePanel && welcomePanel.parentNode) {
+                welcomePanel.parentNode.removeChild(welcomePanel);
+                welcomePanel = null;
+                console.log('📜 Welcome Panel Closed');
+            }
+        }
+        
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
 
@@ -416,10 +532,13 @@ window.addEventListener('load', () => {
                 ctrl1.addEventListener('selectstart', () => grab(ctrl1));
                 ctrl1.addEventListener('selectend', release);
 
-                // CREATE HUD MENU IMMEDIATELY
+                // CREATE WELCOME PANEL FIRST
+                createWelcomePanel();
+                
+                // CREATE HUD MENU (but hidden)
                 createHUDInventory();
 
-                debugEl.textContent = 'AR OK! Regarde en bas';
+                debugEl.textContent = 'AR OK! Read the instructions';
 
                 // Setup hit-test après délai
                 setTimeout(async () => {
@@ -563,14 +682,16 @@ window.addEventListener('load', () => {
             // 3. Interaction Logic (Unified for Both Controllers)
 
             const handleControllerInteraction = (controller) => {
-                if (!controller || !inventoryEntity) return;
+                if (!controller) return;
 
-                const isMenuVisible = inventoryEntity.getAttribute('visible');
+                const isMenuVisible = inventoryEntity && inventoryEntity.getAttribute('visible');
+                const isWelcomeVisible = welcomePanel !== null;
 
                 let line = controller.getObjectByName('laser-line');
                 let cursor = controller.getObjectByName('laser-cursor');
 
-                if (!isMenuVisible) {
+                // Hide laser if neither menu nor welcome panel is visible
+                if (!isMenuVisible && !isWelcomeVisible) {
                     if (line) line.visible = false;
                     if (cursor) cursor.visible = false;
                     return;
@@ -605,11 +726,24 @@ window.addEventListener('load', () => {
                 raycaster.far = 3.0;
 
                 const buttons = [];
-                inventoryEntity.object3D.traverse(child => {
-                    if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
-                        buttons.push(child);
-                    }
-                });
+                
+                // Search in inventory menu
+                if (inventoryEntity && inventoryEntity.object3D) {
+                    inventoryEntity.object3D.traverse(child => {
+                        if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
+                            buttons.push(child);
+                        }
+                    });
+                }
+                
+                // Search in welcome panel
+                if (welcomePanel && welcomePanel.object3D) {
+                    welcomePanel.object3D.traverse(child => {
+                        if (child.el && child.el.classList.contains('clickable') && child.isMesh) {
+                            buttons.push(child);
+                        }
+                    });
+                }
 
                 const intersects = raycaster.intersectObjects(buttons);
 
@@ -645,9 +779,18 @@ window.addEventListener('load', () => {
 
                     if (window.isAnyBtnPressed && !window.uiClickLock) {
                         window.uiClickLock = true;
-                        console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
-                        el.setAttribute('color', '#00cec9');
-                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel, el.dataset.spawnScale);
+                        
+                        // Check if it's the welcome panel close button
+                        if (el.id === 'welcome-close-btn') {
+                            console.log('📜 Closing Welcome Panel');
+                            closeWelcomePanel();
+                        } 
+                        // Otherwise it's a spawn button
+                        else if (el.dataset.spawnType) {
+                            console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
+                            el.setAttribute('color', '#00cec9');
+                            spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel, el.dataset.spawnScale);
+                        }
                     }
 
                 } else {
