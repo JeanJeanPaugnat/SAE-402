@@ -60,7 +60,7 @@ window.addEventListener('load', () => {
             };
 
             const cup = document.createElement('a-entity');
-            cup.setAttribute('gltf-model', 'url(models/Coffee cup.glb)');
+            cup.setAttribute('gltf-model', 'url(models/Coffeecup.glb)');
             cup.setAttribute('scale', '0.08 0.08 0.08');
             cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
             cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
@@ -337,9 +337,9 @@ window.addEventListener('load', () => {
                 { type: 'gltf', label: 'REGISTER', model: 'models/Cashregister.glb', color: '#fff', menuScale: '0.005 0.005 0.005', spawnScale: '0.15 0.15 0.15' },
                 // Row 3
                 { type: 'gltf', label: 'SIGN', model: 'models/Coffeesign.glb', color: '#fff', menuScale: '0.04 0.04 0.04', spawnScale: '0.4 0.4 0.4' },
-                { type: 'gltf', label: 'COUCH', model: 'models/Couch.glb', color: '#fff', menuScale: '0.05 0.05 0.05', spawnScale: '0.005 0.005 0.005' },
+                { type: 'gltf', label: 'COUCH', model: 'models/Couch.glb', color: '#fff', menuScale: '0.08 0.08 0.08', spawnScale: '0.005 0.005 0.005' },
                 { type: 'gltf', label: 'PLANT', model: 'models/Houseplant.glb', color: '#fff', menuScale: '0.1 0.1 0.1', spawnScale: '0.4 0.4 0.4' },
-                { type: 'gltf', label: 'RUG', model: 'models/Rug.glb', color: '#fff', menuScale: '0.005 0.005 0.005', spawnScale: '0.005 0.005 0.005' }
+                { type: 'gltf', label: 'RUG', model: 'models/Rug.glb', color: '#fff', menuScale: '0.05 0.05 0.05', spawnScale: '0.005 0.005 0.005' }
             ];
 
             const gap = 0.35;
@@ -645,7 +645,7 @@ window.addEventListener('load', () => {
                                     if (obj && obj.object3D) {
                                         // Check if it's a coffee machine (by gltf-model attribute)
                                         const model = obj.getAttribute('gltf-model');
-                                        if (model && model.includes('Coffee Machine')) {
+                                        if (model && model.includes('CoffeeMachine')) {
                                             obj.object3D.traverse(child => {
                                                 if (child.isMesh) {
                                                     child.el = obj; // Reference to A-Frame entity
