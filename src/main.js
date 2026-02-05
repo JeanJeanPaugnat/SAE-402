@@ -13,14 +13,48 @@ window.addEventListener('load', () => {
         const btn = document.getElementById('btn');
         const sceneEl = document.getElementById('scene');
         const cubeEl = document.getElementById('cube');
-        const cursorEl = document.getElementById('cursor');
+        let cursorEl = document.getElementById('cursor'); // Changed to let
 
         if (!sceneEl || !cubeEl) {
             debugEl.textContent = 'Éléments manquants!';
             return;
         }
 
+        // AUTO-CREATE CURSOR IF MISSING
+        if (!cursorEl && sceneEl) {
+            console.log('Creating cursor manually...');
+            cursorEl = document.createElement('a-ring');
+            cursorEl.id = 'cursor';
+            cursorEl.setAttribute('color', 'green');
+            cursorEl.setAttribute('radius-inner', '0.05'); // Slightly thicker
+            cursorEl.setAttribute('radius-outer', '0.08');
+            cursorEl.setAttribute('rotation', '-90 0 0');
+            cursorEl.setAttribute('visible', 'false');
+            cursorEl.setAttribute('material', 'shader: flat; opacity: 0.8; transparent: true');
+            sceneEl.appendChild(cursorEl);
+        }
+
         debugEl.textContent = 'Prêt!';
+
+        // ENSURE CURSOR EXISTS (Robustness Fix)
+        if (!cursorEl) {
+            console.warn('⚠️ Cursor missing in HTML, creating it manually.');
+            const c = document.createElement('a-ring');
+            c.id = 'cursor';
+            c.setAttribute('color', 'green');
+            c.setAttribute('radius-inner', '0.02');
+            c.setAttribute('radius-outer', '0.04');
+            c.setAttribute('rotation', '-90 0 0'); // Flat on ground
+            c.setAttribute('visible', 'false');
+            sceneEl.appendChild(c);
+            // Update reference
+            // cursorEl is const, so we can't reassign it easily if it was null. 
+            // We need to handle this.
+            // But standard 'const cursorEl' at top of scope would be null.
+        }
+        // Actually, since cursorEl is const in line 16, we can't reassign.
+        // We must rely on 'document.getElementById' returning the new one or use a mutable var.
+        // Let's change the variable declaration to let, OR just re-fetch it.
 
         let xrSession = null;
         let xrRefSpace = null;
@@ -331,7 +365,7 @@ window.addEventListener('load', () => {
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'gltf', model: 'models/CoffeeMachine.glb', color: '#fab1a0', label: 'COFFEE', menuScale: '0.2 0.2 0.2', spawnScale: '0.4 0.4 0.4' },
                 { type: 'gltf', model: 'models/TrashcanSmall.glb', color: '#a29bfe', label: 'POUBELLE', menuScale: '0.2 0.2 0.2', spawnScale: '0.8 0.8 0.8' },
-                // Row 2
+                // Row 2 
                 { type: 'gltf', label: 'SPEAKER', model: 'models/BassSpeakers.glb', color: '#fff', menuScale: '0.1 0.1 0.1', spawnScale: '0.8 0.8 0.8' },
                 { type: 'gltf', label: 'BROOM', model: 'models/Broom.glb', color: '#fff', menuScale: '0.001 0.001 0.001', spawnScale: '0.004 0.004 0.004' },
                 { type: 'gltf', label: 'REGISTER', model: 'models/Cashregister.glb', color: '#fff', menuScale: '0.005 0.005 0.005', spawnScale: '0.04 0.04 0.04' },
@@ -580,14 +614,31 @@ window.addEventListener('load', () => {
                         const pose = hits[0].getPose(xrRefSpace);
                         if (pose) {
                             const p = pose.transform.position;
+                            const r = pose.transform.orientation;
+
                             cursorEl.object3D.visible = true;
                             cursorEl.object3D.position.set(p.x, p.y, p.z);
+
+                            // ORIENTATION FIX:
+                            if (r) {
+                                const poseRot = new THREE.Quaternion(r.x, r.y, r.z, r.w);
+                                const offset = new THREE.Quaternion();
+                                offset.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2); // -90 deg X
+                                poseRot.multiply(offset);
+                                cursorEl.object3D.quaternion.copy(poseRot);
+                            } else {
+                                // Fallback if no rotation data: Flat on floor
+                                cursorEl.object3D.rotation.set(-Math.PI / 2, 0, 0);
+                            }
+
                             addSurface(p.x, p.y, p.z);
                         }
                     } else {
                         cursorEl.object3D.visible = false;
                     }
-                } catch (e) { }
+                } catch (e) {
+                    console.error("Hit test error:", e);
+                }
             }
 
             // --- TRASHCAN COLLISION CHECK ---
@@ -603,6 +654,46 @@ window.addEventListener('load', () => {
 
                 // Checking Input Sources
                 for (const source of ses.inputSources) {
+                    if (!source.gamepad) continue;
+
+                    // --- JOYSTICK ROTATION LOGIC ---
+                    // Verify if this source is the one holding the object
+                    // We need to match the source to the controller entity (ctrl0/ctrl1)
+                    // Simplified: If ANY joystick is moved and we have a grabbed object, rotate it.
+                    // Ideally check handedness matches grabController.
+
+                    if (grabbed && currentGrabbedEl && source.gamepad.axes.length >= 2) {
+                        const rotSpeed = 0.05;
+
+                        // DUAL JOYSTICK CONTROL
+                        // Left Controller: Yaw (Left/Right)
+                        if (source.handedness === 'left') {
+                            const axisX = source.gamepad.axes[2] !== undefined ? source.gamepad.axes[2] : source.gamepad.axes[0];
+                            if (Math.abs(axisX) > 0.1) {
+                                currentGrabbedEl.object3D.rotation.y += -axisX * rotSpeed;
+
+                                if (currentGrabbedEl.body) {
+                                    const q = currentGrabbedEl.object3D.quaternion;
+                                    currentGrabbedEl.body.quaternion.set(q.x, q.y, q.z, q.w);
+                                }
+                            }
+                        }
+
+                        // Right Controller: Pitch (Up/Down)
+                        if (source.handedness === 'right') {
+                            const axisY = source.gamepad.axes[3] !== undefined ? source.gamepad.axes[3] : source.gamepad.axes[1];
+                            if (Math.abs(axisY) > 0.1) {
+                                currentGrabbedEl.object3D.rotation.x += -axisY * rotSpeed;
+
+                                if (currentGrabbedEl.body) {
+                                    const q = currentGrabbedEl.object3D.quaternion;
+                                    currentGrabbedEl.body.quaternion.set(q.x, q.y, q.z, q.w);
+                                }
+                            }
+                        }
+                    }
+
+                    // LEFT CONTROLLER - Menu Toggle
                     // LEFT CONTROLLER - Menu Toggle (Button 4/5 usually X/Y)
                     if (source.handedness === 'left' && source.gamepad) {
                         // Button 5 is usually 'Y' on Quest
