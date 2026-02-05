@@ -35,6 +35,66 @@ window.addEventListener('load', () => {
         let currentGrabbedEl = null; // Track which element is grabbed
 
         let menuToggleLock = false; // Prevents flickering when holding button
+        let coffeeMachineLock = false; // Prevents multiple coffee spawns
+        let coffeeAudio = null; // Audio element for coffee sound
+        
+        // --- COFFEE MACHINE AUDIO SETUP ---
+        function initCoffeeAudio() {
+            coffeeAudio = new Audio('/sounds/public_assets_café.MP3');
+            coffeeAudio.volume = 0.7;
+        }
+        initCoffeeAudio();
+        
+        // --- SPAWN COFFEE CUP FUNCTION ---
+        function spawnCoffeeCup(machineEntity) {
+            if (!machineEntity || !machineEntity.object3D) return;
+            
+            const machinePos = new THREE.Vector3();
+            machineEntity.object3D.getWorldPosition(machinePos);
+            
+            // Position à droite de la machine (offset de 0.15m sur X)
+            const cupPos = {
+                x: machinePos.x + 0.15,
+                y: machinePos.y + 0.05, // Légèrement au dessus du sol
+                z: machinePos.z
+            };
+            
+            const cup = document.createElement('a-entity');
+            cup.setAttribute('gltf-model', 'url(models/Coffee cup.glb)');
+            cup.setAttribute('scale', '0.8 0.8 0.8');
+            cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
+            cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
+            cup.setAttribute('class', 'clickable grabbable');
+            cup.id = `coffee-cup-${Date.now()}`;
+            
+            sceneEl.appendChild(cup);
+            spawnedObjects.push(cup);
+            
+            console.log('☕ Tasse de café créée à:', cupPos);
+            if (debugEl) debugEl.textContent = '☕ Café prêt!';
+        }
+        
+        // --- COFFEE MACHINE INTERACTION ---
+        function handleCoffeeMachineClick(machineEntity) {
+            if (coffeeMachineLock) return; // Déjà en cours
+            coffeeMachineLock = true;
+            
+            console.log('☕ Machine à café activée!');
+            if (debugEl) debugEl.textContent = '☕ Préparation du café...';
+            
+            // Jouer le son
+            if (coffeeAudio) {
+                coffeeAudio.currentTime = 0;
+                coffeeAudio.play().catch(e => console.log('Audio error:', e));
+            }
+            
+            // Attendre 1.5 secondes puis faire apparaître la tasse
+            setTimeout(() => {
+                spawnCoffeeCup(machineEntity);
+                coffeeMachineLock = false; // Débloquer pour le prochain café
+            }, 1500);
+        }
+        
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
 
@@ -99,7 +159,7 @@ window.addEventListener('load', () => {
                 { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
                 { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
                 { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', scale: '0.03 0.03 0.03' },
-                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.015 0.015 0.015' }
+                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.1 0.1 0.1' }
             ];
 
             const gap = 0.32; // Tighter gap
@@ -358,6 +418,52 @@ window.addEventListener('load', () => {
                             }
                         } else {
                             if (menuToggleLock) menuToggleLock = false;
+                        }
+                    }
+
+                    // RIGHT CONTROLLER - Coffee Machine Interaction (Button B)
+                    if (source.handedness === 'right' && source.gamepad) {
+                        // Button 5 is usually 'B' on Quest (or 4/3 depending on mapping)
+                        const bBtn = source.gamepad.buttons[5] || source.gamepad.buttons[4];
+                        
+                        if (bBtn && bBtn.pressed && !coffeeMachineLock) {
+                            // Raycast from right controller to detect coffee machine
+                            const rightCtrl = window.rightController;
+                            if (rightCtrl) {
+                                const tempMatrix = new THREE.Matrix4();
+                                tempMatrix.identity().extractRotation(rightCtrl.matrixWorld);
+                                
+                                const raycaster = new THREE.Raycaster();
+                                raycaster.ray.origin.setFromMatrixPosition(rightCtrl.matrixWorld);
+                                raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+                                raycaster.far = 5.0; // 5 mètres de portée
+                                
+                                // Find all coffee machines in spawnedObjects
+                                const coffeeMachines = [];
+                                spawnedObjects.forEach(obj => {
+                                    if (obj && obj.object3D) {
+                                        // Check if it's a coffee machine (by gltf-model attribute)
+                                        const model = obj.getAttribute('gltf-model');
+                                        if (model && model.includes('Coffee Machine')) {
+                                            obj.object3D.traverse(child => {
+                                                if (child.isMesh) {
+                                                    child.el = obj; // Reference to A-Frame entity
+                                                    coffeeMachines.push(child);
+                                                }
+                                            });
+                                        }
+                                    }
+                                });
+                                
+                                const intersects = raycaster.intersectObjects(coffeeMachines);
+                                
+                                if (intersects.length > 0) {
+                                    const hitEntity = intersects[0].object.el;
+                                    if (hitEntity) {
+                                        handleCoffeeMachineClick(hitEntity);
+                                    }
+                                }
+                            }
                         }
                     }
 
