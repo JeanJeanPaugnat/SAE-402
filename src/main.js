@@ -61,7 +61,7 @@ window.addEventListener('load', () => {
             
             const cup = document.createElement('a-entity');
             cup.setAttribute('gltf-model', 'url(models/Coffee cup.glb)');
-            cup.setAttribute('scale', '0.8 0.8 0.8');
+            cup.setAttribute('scale', '0.08 0.08 0.08');
             cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
             cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
             cup.setAttribute('class', 'clickable grabbable');
@@ -93,6 +93,69 @@ window.addEventListener('load', () => {
                 spawnCoffeeCup(machineEntity);
                 coffeeMachineLock = false; // Débloquer pour le prochain café
             }, 1500);
+        }
+        
+        // --- TRASHCAN DELETION SYSTEM ---
+        const trashcans = []; // Liste des poubelles dans la scène
+        const TRASH_RADIUS = 0.2; // Rayon de détection pour la suppression
+        
+        function removeObjectFromScene(objEl) {
+            if (!objEl || !objEl.parentNode) return;
+            
+            // Remove from spawnedObjects array
+            const idx = spawnedObjects.indexOf(objEl);
+            if (idx > -1) {
+                spawnedObjects.splice(idx, 1);
+            }
+            
+            // Remove physics body if exists
+            if (objEl.body) {
+                objEl.body.world.removeBody(objEl.body);
+            }
+            
+            // Remove from scene
+            objEl.parentNode.removeChild(objEl);
+            
+            console.log('🗑️ Objet supprimé par la poubelle!');
+            if (debugEl) debugEl.textContent = '🗑️ Objet jeté!';
+        }
+        
+        function checkTrashcanCollisions() {
+            if (trashcans.length === 0) return;
+            
+            const trashPos = new THREE.Vector3();
+            const objPos = new THREE.Vector3();
+            
+            // Pour chaque poubelle
+            trashcans.forEach(trashcan => {
+                if (!trashcan || !trashcan.object3D) return;
+                trashcan.object3D.getWorldPosition(trashPos);
+                
+                // Vérifier chaque objet spawned (sauf les poubelles elles-mêmes)
+                const objectsToCheck = [...spawnedObjects].filter(obj => 
+                    obj && !obj.classList.contains('trashcan')
+                );
+                
+                objectsToCheck.forEach(obj => {
+                    if (!obj || !obj.object3D) return;
+                    obj.object3D.getWorldPosition(objPos);
+                    
+                    const distance = trashPos.distanceTo(objPos);
+                    
+                    if (distance < TRASH_RADIUS) {
+                        removeObjectFromScene(obj);
+                    }
+                });
+                
+                // Vérifier aussi le cube de base
+                if (cubeEl && cubeEl.object3D) {
+                    cubeEl.object3D.getWorldPosition(objPos);
+                    const distance = trashPos.distanceTo(objPos);
+                    if (distance < TRASH_RADIUS) {
+                        removeObjectFromScene(cubeEl);
+                    }
+                }
+            });
         }
         
         // --- 3D INVENTORY HUD (Attached to Camera) ---
@@ -154,12 +217,14 @@ window.addEventListener('load', () => {
             menu.appendChild(line);
 
             // Item Config
+            // menuScale = taille dans le menu HUD (petit pour l'aperçu)
+            // spawnScale = taille réelle dans la scène 3D
             const items = [
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'sphere', color: '#74b9ff', label: 'SPHERE' },
                 { type: 'cylinder', color: '#ffeaa7', label: 'CYLINDER' },
-                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', scale: '0.03 0.03 0.03' },
-                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', scale: '0.1 0.1 0.1' }
+                { type: 'gltf', model: 'models/Coffee Machine.glb', color: '#fab1a0', label: 'COFFEE', menuScale: '0.2 0.2 0.2', spawnScale: '0.4 0.4 0.4' },
+                { type: 'gltf', model: 'models/Trashcan Small.glb', color: '#a29bfe', label: 'POUBELLE', menuScale: '0.2 0.2 0.2', spawnScale: '0.5 0.5 0.5' }
             ];
 
             const gap = 0.32; // Tighter gap
@@ -186,6 +251,7 @@ window.addEventListener('load', () => {
                 btn.dataset.spawnType = item.type;
                 btn.dataset.spawnColor = item.color;
                 if (item.model) btn.dataset.spawnModel = item.model;
+                if (item.spawnScale) btn.dataset.spawnScale = item.spawnScale; // Taille de spawn
 
                 // Hover Effects
                 btn.addEventListener('mouseenter', () => {
@@ -209,7 +275,7 @@ window.addEventListener('load', () => {
                 if (item.type === 'gltf') {
                     icon = document.createElement('a-entity');
                     icon.setAttribute('gltf-model', `url(${item.model})`);
-                    icon.setAttribute('scale', item.scale || '0.03 0.03 0.03');
+                    icon.setAttribute('scale', item.menuScale || '0.08 0.08 0.08'); // Taille dans le menu
                 } else {
                     icon = document.createElement(`a-${item.type}`);
                     icon.setAttribute('scale', '0.06 0.06 0.06');
@@ -240,7 +306,7 @@ window.addEventListener('load', () => {
 
         let lastSpawnTime = 0;
 
-        function spawnObject(type, color, model) {
+        function spawnObject(type, color, model, customScale) {
             const now = Date.now();
             if (now - lastSpawnTime < 500) {
                 console.warn('⚠️ Spawn rate limited');
@@ -256,9 +322,11 @@ window.addEventListener('load', () => {
             cam.object3D.getWorldPosition(camPos);
             cam.object3D.getWorldDirection(camDir);
 
-            // Spawn 1.5m in front of camera (POSITIVE SCALAR!)
-            const spawnPos = camPos.clone().add(camDir.multiplyScalar(1.5));
-            spawnPos.y = Math.max(spawnPos.y, 0.5); // At least 50cm from ground to be visible
+            // Spawn 1.5m in front of camera
+            // getWorldDirection retourne la direction vers laquelle on regarde (axe -Z)
+            // On utilise cette direction directement, mais on inverse si nécessaire
+            const spawnPos = camPos.clone().add(camDir.multiplyScalar(-1.5)); // Négatif car cam regarde vers -Z
+            spawnPos.y = Math.max(spawnPos.y, 0.1); // Au moins 10cm du sol
 
             console.log('✨ SPAWNING at:', spawnPos);
 
@@ -277,7 +345,8 @@ window.addEventListener('load', () => {
                 case 'gltf':
                     entity = document.createElement('a-entity');
                     entity.setAttribute('gltf-model', `url(${model})`);
-                    entity.setAttribute('scale', '0.4 0.4 0.4');
+                    // Utiliser le scale personnalisé ou un défaut de 0.1
+                    entity.setAttribute('scale', customScale || '0.1 0.1 0.1');
                     break;
                 case 'tetrahedron':
                     entity = document.createElement('a-tetrahedron');
@@ -295,6 +364,12 @@ window.addEventListener('load', () => {
             entity.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
             entity.setAttribute('class', 'clickable grabbable');
             entity.id = `spawned-${now}`;
+            
+            // Si c'est une poubelle, l'ajouter à la liste des trashcans (mais garde la même physique)
+            if (model && model.includes('Trashcan')) {
+                entity.classList.add('trashcan');
+                trashcans.push(entity);
+            }
 
             sceneEl.appendChild(entity);
             spawnedObjects.push(entity);
@@ -391,6 +466,9 @@ window.addEventListener('load', () => {
                     }
                 } catch (e) { }
             }
+
+            // --- TRASHCAN COLLISION CHECK ---
+            checkTrashcanCollisions();
 
             // --- MANUEL RAYCASTER & DIAGNOSTICS ---
 
@@ -569,7 +647,7 @@ window.addEventListener('load', () => {
                         window.uiClickLock = true;
                         console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
                         el.setAttribute('color', '#00cec9');
-                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel);
+                        spawnObject(el.dataset.spawnType, el.dataset.spawnColor, el.dataset.spawnModel, el.dataset.spawnScale);
                     }
 
                 } else {
