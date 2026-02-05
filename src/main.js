@@ -909,8 +909,18 @@ window.addEventListener('load', () => {
                     if (isFinite(pos.x) && isFinite(pos.y) && isFinite(pos.z)) {
                         currentGrabbedEl.object3D.position.set(pos.x, pos.y, pos.z);
 
+                        // SPECIAL CASE: BROOM OFFSET
+                        // Grab by the handle (middle) instead of bottom
+                        const model = currentGrabbedEl.getAttribute('gltf-model');
+                        if (model && model.includes('Broom')) {
+                            // Move the broom down relative to its own rotation so the hand is higher up the stick
+                            // Adjust this value based on visual preference (e.g., 0.5m)
+                            currentGrabbedEl.object3D.translateY(-0.6);
+                        }
+
                         if (currentGrabbedEl.body) {
-                            currentGrabbedEl.body.position.set(pos.x, pos.y, pos.z);
+                            const p = currentGrabbedEl.object3D.position;
+                            currentGrabbedEl.body.position.set(p.x, p.y, p.z);
                         }
 
                         velocities.push({ x: pos.x, y: pos.y, z: pos.z, t: performance.now() });
@@ -1028,6 +1038,83 @@ window.addEventListener('load', () => {
 
             if (surfaces.length > 200) surfaces.shift();
         }
+
+        // --- STAIN SYSTEM ---
+        const stains = [];
+
+        function spawnRandomStain() {
+            // Random position around user (assuming floor is roughly y=0)
+            // Range: -2m to 2m X/Z
+            const x = (Math.random() - 0.5) * 4;
+            const z = (Math.random() - 0.5) * 4 - 1.5; // Offset forward slightly
+            const y = 0.01; // Slightly above floor
+
+            const stain = document.createElement('a-circle');
+            stain.setAttribute('radius', 0.2 + Math.random() * 0.2); // Random size
+            stain.setAttribute('rotation', '-90 0 0');
+            stain.setAttribute('position', `${x} ${y} ${z}`);
+            stain.setAttribute('color', '#5d4037'); // Dirt brown
+            stain.setAttribute('opacity', '0.9');
+            stain.setAttribute('material', 'shader: flat; transparent: true');
+            stain.classList.add('stain');
+
+            sceneEl.appendChild(stain);
+            stains.push({ el: stain, health: 100 });
+
+            console.log('Dirt spot spawned at', x, z);
+        }
+
+        // Spawn initial stains
+        setTimeout(() => {
+            for (let i = 0; i < 5; i++) spawnRandomStain();
+        }, 2000);
+
+        function checkCleaning() {
+            // Only if holding the broom
+            if (!grabbed || !currentGrabbedEl) return;
+            const model = currentGrabbedEl.getAttribute('gltf-model');
+            if (!model || !model.includes('Broom')) return;
+
+            // Calculate Broom Tip Position
+            // Origin of broom is likely bottom, but we offset the GRAB position.
+            // We need the WORLD position of the bottom of the broom.
+            // Since we grab it by the handle (offset -0.6), the "bottom" is closer to the true origin of the mesh.
+            // But we need the actual world coordinates of the mesh origin (which is the bottom usually).
+
+            const broomPos = new THREE.Vector3();
+            currentGrabbedEl.object3D.getWorldPosition(broomPos);
+
+            // Check collision with stains
+            stains.forEach((stainObj, index) => {
+                if (!stainObj.el || !stainObj.el.parentNode) return;
+
+                const stainPos = stainObj.el.object3D.position;
+                const dist = new THREE.Vector2(broomPos.x, broomPos.z).distanceTo(new THREE.Vector2(stainPos.x, stainPos.z));
+                const verticalDist = Math.abs(broomPos.y - stainPos.y);
+
+                // If close enough (Cleaning radius)
+                if (dist < 0.4 && verticalDist < 0.5) {
+                    // Reduce health (fade out)
+                    stainObj.health -= 5;
+                    stainObj.el.setAttribute('opacity', stainObj.health / 100);
+
+                    // Pop effect or particle could go here
+
+                    if (stainObj.health <= 0) {
+                        // Remove
+                        if (stainObj.el.parentNode) stainObj.el.parentNode.removeChild(stainObj.el);
+                        stains.splice(index, 1);
+                        debugEl.textContent = 'Tache nettoyée !';
+
+                        // Spawn new one occasionally
+                        if (Math.random() > 0.5) spawnRandomStain();
+                    }
+                }
+            });
+        }
+
+        // Add checkCleaning to loop (using setInterval or inside xrLoop)
+        setInterval(checkCleaning, 50); // 20 times per second
 
     }, 100);
 });
