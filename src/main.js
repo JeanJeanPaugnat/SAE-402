@@ -94,59 +94,59 @@ window.addEventListener('load', () => {
                 coffeeMachineLock = false; // Débloquer pour le prochain café
             }, 1500);
         }
-        
+
         // --- TRASHCAN DELETION SYSTEM ---
         const trashcans = []; // Liste des poubelles dans la scène
         const TRASH_RADIUS = 0.2; // Rayon de détection pour la suppression
-        
+
         function removeObjectFromScene(objEl) {
             if (!objEl || !objEl.parentNode) return;
-            
+
             // Remove from spawnedObjects array
             const idx = spawnedObjects.indexOf(objEl);
             if (idx > -1) {
                 spawnedObjects.splice(idx, 1);
             }
-            
+
             // Remove physics body if exists
             if (objEl.body) {
                 objEl.body.world.removeBody(objEl.body);
             }
-            
+
             // Remove from scene
             objEl.parentNode.removeChild(objEl);
-            
+
             console.log('🗑️ Objet supprimé par la poubelle!');
             if (debugEl) debugEl.textContent = '🗑️ Objet jeté!';
         }
-        
+
         function checkTrashcanCollisions() {
             if (trashcans.length === 0) return;
-            
+
             const trashPos = new THREE.Vector3();
             const objPos = new THREE.Vector3();
-            
+
             // Pour chaque poubelle
             trashcans.forEach(trashcan => {
                 if (!trashcan || !trashcan.object3D) return;
                 trashcan.object3D.getWorldPosition(trashPos);
-                
+
                 // Vérifier chaque objet spawned (sauf les poubelles elles-mêmes)
-                const objectsToCheck = [...spawnedObjects].filter(obj => 
+                const objectsToCheck = [...spawnedObjects].filter(obj =>
                     obj && !obj.classList.contains('trashcan')
                 );
-                
+
                 objectsToCheck.forEach(obj => {
                     if (!obj || !obj.object3D) return;
                     obj.object3D.getWorldPosition(objPos);
-                    
+
                     const distance = trashPos.distanceTo(objPos);
-                    
+
                     if (distance < TRASH_RADIUS) {
                         removeObjectFromScene(obj);
                     }
                 });
-                
+
                 // Vérifier aussi le cube de base
                 if (cubeEl && cubeEl.object3D) {
                     cubeEl.object3D.getWorldPosition(objPos);
@@ -157,18 +157,18 @@ window.addEventListener('load', () => {
                 }
             });
         }
-        
+
         // --- WELCOME PANEL (Intro Screen) ---
         let welcomePanel = null;
-        
+
         function createWelcomePanel() {
             const cam = document.getElementById('cam');
             if (!cam) return;
-            
+
             welcomePanel = document.createElement('a-entity');
             welcomePanel.setAttribute('position', '0 0 -1.2'); // 1.2m devant la caméra
             welcomePanel.setAttribute('rotation', '0 0 0');
-            
+
             // --- PAPER BACKGROUND ---
             const paper = document.createElement('a-plane');
             paper.setAttribute('width', '0.84');
@@ -179,7 +179,7 @@ window.addEventListener('load', () => {
             // Légère rotation pour effet manuscrit
             paper.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(paper);
-            
+
             // --- PAPER BORDER (Shadow effect) ---
             const shadow = document.createElement('a-plane');
             shadow.setAttribute('width', '0.86');
@@ -189,7 +189,7 @@ window.addEventListener('load', () => {
             shadow.setAttribute('position', '0.01 -0.01 -0.01');
             shadow.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(shadow);
-            
+
             // --- TITLE ---
             const title = document.createElement('a-text');
             title.setAttribute('value', '~ HOLO BARISTA ~');
@@ -199,7 +199,7 @@ window.addEventListener('load', () => {
             title.setAttribute('color', '#2d1810'); // Brun foncé
             title.setAttribute('font', 'mozillavr');
             welcomePanel.appendChild(title);
-            
+
             // --- DECORATIVE LINE ---
             const line = document.createElement('a-plane');
             line.setAttribute('width', '0.5');
@@ -207,10 +207,10 @@ window.addEventListener('load', () => {
             line.setAttribute('color', '#8b4513');
             line.setAttribute('position', '0 0.16 0.01');
             welcomePanel.appendChild(line);
-            
+
             // --- INTRO TEXT ---
             const introText = document.createElement('a-text');
-            introText.setAttribute('value', 
+            introText.setAttribute('value',
                 'Welcome to Holo Barista!\\n\\n' +
                 'You are the barista of a virtual coffee shop.\\n' +
                 'Your mission: serve delicious coffee!\\n\\n' +
@@ -228,7 +228,7 @@ window.addEventListener('load', () => {
             introText.setAttribute('color', '#3d2914');
             introText.setAttribute('line-height', '55');
             welcomePanel.appendChild(introText);
-            
+
             // --- CLOSE BUTTON ---
             const closeBtn = document.createElement('a-box');
             closeBtn.setAttribute('width', '0.2');
@@ -238,7 +238,7 @@ window.addEventListener('load', () => {
             closeBtn.setAttribute('position', '0 -0.6 0.02');
             closeBtn.setAttribute('class', 'clickable');
             closeBtn.id = 'welcome-close-btn';
-            
+
             // Button text
             const closeTxt = document.createElement('a-text');
             closeTxt.setAttribute('value', 'START');
@@ -247,7 +247,7 @@ window.addEventListener('load', () => {
             closeTxt.setAttribute('width', '1.2');
             closeTxt.setAttribute('color', '#f5f0e1');
             closeBtn.appendChild(closeTxt);
-            
+
             // Hover effect
             closeBtn.addEventListener('mouseenter', () => {
                 closeBtn.setAttribute('color', '#a0522d');
@@ -257,15 +257,15 @@ window.addEventListener('load', () => {
                 closeBtn.setAttribute('color', '#8b4513');
                 closeBtn.setAttribute('scale', '1 1 1');
             });
-            
+
             welcomePanel.appendChild(closeBtn);
-            
+
             cam.appendChild(welcomePanel);
             console.log('📜 Welcome Panel Created');
-            
+
             return welcomePanel;
         }
-        
+
         function closeWelcomePanel() {
             if (welcomePanel && welcomePanel.parentNode) {
                 welcomePanel.parentNode.removeChild(welcomePanel);
@@ -273,7 +273,7 @@ window.addEventListener('load', () => {
                 console.log('📜 Welcome Panel Closed');
             }
         }
-        
+
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
 
@@ -330,16 +330,16 @@ window.addEventListener('load', () => {
                 // Row 1: Primitives + Basics
                 { type: 'box', color: '#ff7675', label: 'CUBE' },
                 { type: 'gltf', model: 'models/CoffeeMachine.glb', color: '#fab1a0', label: 'COFFEE', menuScale: '0.2 0.2 0.2', spawnScale: '0.4 0.4 0.4' },
-                { type: 'gltf', model: 'models/TrashcanSmall.glb', color: '#a29bfe', label: 'POUBELLE', menuScale: '0.2 0.2 0.2', spawnScale: '0.5 0.5 0.5' },
+                { type: 'gltf', model: 'models/TrashcanSmall.glb', color: '#a29bfe', label: 'POUBELLE', menuScale: '0.2 0.2 0.2', spawnScale: '0.8 0.8 0.8' },
                 // Row 2
                 { type: 'gltf', label: 'SPEAKER', model: 'models/BassSpeakers.glb', color: '#fff', menuScale: '0.1 0.1 0.1', spawnScale: '0.8 0.8 0.8' },
-                { type: 'gltf', label: 'BROOM', model: 'models/Broom.glb', color: '#fff', menuScale: '0.001 0.001 0.001', spawnScale: '0.01 0.01 0.01' },
-                { type: 'gltf', label: 'REGISTER', model: 'models/Cashregister.glb', color: '#fff', menuScale: '0.005 0.005 0.005', spawnScale: '0.15 0.15 0.15' },
+                { type: 'gltf', label: 'BROOM', model: 'models/Broom.glb', color: '#fff', menuScale: '0.001 0.001 0.001', spawnScale: '0.004 0.004 0.004' },
+                { type: 'gltf', label: 'REGISTER', model: 'models/Cashregister.glb', color: '#fff', menuScale: '0.005 0.005 0.005', spawnScale: '0.04 0.04 0.04' },
                 // Row 3
-                { type: 'gltf', label: 'SIGN', model: 'models/Coffeesign.glb', color: '#fff', menuScale: '0.04 0.04 0.04', spawnScale: '0.4 0.4 0.4' },
-                { type: 'gltf', label: 'COUCH', model: 'models/Couch.glb', color: '#fff', menuScale: '0.08 0.08 0.08', spawnScale: '0.005 0.005 0.005' },
+                { type: 'gltf', label: 'SIGN', model: 'models/Coffeesign.glb', color: '#fff', menuScale: '0.04 0.04 0.04', spawnScale: '0.2 0.2 0.2' },
+                { type: 'gltf', label: 'COUCH', model: 'models/Couch.glb', color: '#fff', menuScale: '0.08 0.08 0.08', spawnScale: '0.3 0.3 0.3' },
                 { type: 'gltf', label: 'PLANT', model: 'models/Houseplant.glb', color: '#fff', menuScale: '0.1 0.1 0.1', spawnScale: '0.4 0.4 0.4' },
-                { type: 'gltf', label: 'RUG', model: 'models/Rug.glb', color: '#fff', menuScale: '0.05 0.05 0.05', spawnScale: '0.005 0.005 0.005' }
+                { type: 'gltf', label: 'RUG', model: 'models/Rug.glb', color: '#fff', menuScale: '0.05 0.05 0.05', spawnScale: '0.4 0.4 0.4' }
             ];
 
             const gap = 0.35;
@@ -484,7 +484,7 @@ window.addEventListener('load', () => {
             entity.setAttribute('dynamic-body', 'mass:0.5;linearDamping:0.3;angularDamping:0.3');
             entity.setAttribute('class', 'clickable grabbable');
             entity.id = `spawned-${now}`;
-            
+
             // Si c'est une poubelle, l'ajouter à la liste des trashcans (mais garde la même physique)
             if (model && model.includes('Trashcan')) {
                 entity.classList.add('trashcan');
@@ -538,7 +538,7 @@ window.addEventListener('load', () => {
 
                 // CREATE WELCOME PANEL FIRST
                 createWelcomePanel();
-                
+
                 // CREATE HUD MENU (but hidden)
                 createHUDInventory();
 
@@ -730,7 +730,7 @@ window.addEventListener('load', () => {
                 raycaster.far = 3.0;
 
                 const buttons = [];
-                
+
                 // Search in inventory menu
                 if (inventoryEntity && inventoryEntity.object3D) {
                     inventoryEntity.object3D.traverse(child => {
@@ -739,7 +739,7 @@ window.addEventListener('load', () => {
                         }
                     });
                 }
-                
+
                 // Search in welcome panel
                 if (welcomePanel && welcomePanel.object3D) {
                     welcomePanel.object3D.traverse(child => {
@@ -783,12 +783,12 @@ window.addEventListener('load', () => {
 
                     if (window.isAnyBtnPressed && !window.uiClickLock) {
                         window.uiClickLock = true;
-                        
+
                         // Check if it's the welcome panel close button
                         if (el.id === 'welcome-close-btn') {
                             console.log('📜 Closing Welcome Panel');
                             closeWelcomePanel();
-                        } 
+                        }
                         // Otherwise it's a spawn button
                         else if (el.dataset.spawnType) {
                             console.log('SPAWN COMMAND (Left/Right) for', el.dataset.spawnType);
