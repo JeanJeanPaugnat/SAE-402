@@ -97,9 +97,13 @@ window.addEventListener('load', () => {
             cup.setAttribute('gltf-model', 'url(models/Coffeecup.glb)');
             cup.setAttribute('scale', '0.08 0.08 0.08');
             cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
-            cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
+            cup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.5;angularDamping:0.5');
             cup.setAttribute('class', 'clickable grabbable');
+            cup.classList.add('coffee-cup'); // Ajouter classe spécifique
             cup.id = `coffee-cup-${Date.now()}`;
+            
+            // Marquer comme objet café pour le grab
+            cup.dataset.isCoffee = 'true';
 
             sceneEl.appendChild(cup);
             spawnedObjects.push(cup);
@@ -304,7 +308,38 @@ window.addEventListener('load', () => {
             if (welcomePanel && welcomePanel.parentNode) {
                 welcomePanel.parentNode.removeChild(welcomePanel);
                 welcomePanel = null;
-                console.log('📜 Welcome Panel Closed');
+                
+                debugEl.textContent = '🟢 PANEL FERMÉ - TEST SPAWN';
+                
+                // TEST 1: Créer un cube simple pour tester
+                setTimeout(() => {
+                    debugEl.textContent = '🟢 CREATING TEST CUBE...';
+                    const testCube = document.createElement('a-box');
+                    testCube.setAttribute('position', '0 1.5 -2');
+                    testCube.setAttribute('color', '#ff0000');
+                    testCube.setAttribute('width', '0.5');
+                    testCube.setAttribute('height', '0.5');
+                    testCube.setAttribute('depth', '0.5');
+                    sceneEl.appendChild(testCube);
+                    debugEl.textContent = '🔴 CUBE ROUGE CRÉÉ!';
+                }, 500);
+                
+                // TEST 2: Spawner un vrai client
+                setTimeout(() => {
+                    debugEl.textContent = '👴 SPAWNING GRANDPA...';
+                    spawnCustomer();
+                    debugEl.textContent = '👴 GRANDPA SPAWNED!';
+                }, 3000);
+                
+                // TEST 3: Spawner plus de clients
+                setTimeout(() => {
+                    const spawnInterval = setInterval(() => {
+                        if (customers.length < 3) {
+                            debugEl.textContent = `👴 SPAWN CLIENT ${customers.length + 1}`;
+                            spawnCustomer();
+                        }
+                    }, 10000);
+                }, 10000);
             }
         }
 
@@ -976,7 +1011,8 @@ window.addEventListener('load', () => {
 
             if (currentGrabbedEl.body) {
                 currentGrabbedEl.body.mass = 0;
-                currentGrabbedEl.body.type = 2;
+                currentGrabbedEl.body.type = 2; // Kinematic
+                currentGrabbedEl.body.collisionResponse = false; // Désactiver les collisions pendant le grab
                 currentGrabbedEl.body.updateMassProperties();
             }
 
@@ -1005,8 +1041,9 @@ window.addEventListener('load', () => {
             if (currentGrabbedEl.body) {
                 const p = currentGrabbedEl.object3D.position;
                 currentGrabbedEl.body.position.set(p.x, p.y, p.z);
-                currentGrabbedEl.body.type = 1;
-                currentGrabbedEl.body.mass = 0.5;
+                currentGrabbedEl.body.type = 1; // Dynamic
+                currentGrabbedEl.body.collisionResponse = true; // Réactiver les collisions
+                currentGrabbedEl.body.mass = 0.3; // Masse pour les objets café
                 currentGrabbedEl.body.updateMassProperties();
                 currentGrabbedEl.body.velocity.set(vx, vy, vz);
                 currentGrabbedEl.body.wakeUp();
@@ -1115,6 +1152,227 @@ window.addEventListener('load', () => {
 
         // Add checkCleaning to loop (using setInterval or inside xrLoop)
         setInterval(checkCleaning, 50); // 20 times per second
+
+        // --- AR NOTIFICATION SYSTEM ---
+        function showARNotification(message, duration = 2000) {
+            const cam = document.getElementById('cam');
+            if (!cam) return;
+
+            // Create notification text in AR
+            const notification = document.createElement('a-text');
+            notification.setAttribute('value', message);
+            notification.setAttribute('align', 'center');
+            notification.setAttribute('position', '0 0.3 -1'); // Devant les yeux
+            notification.setAttribute('width', '3');
+            notification.setAttribute('color', '#00ff00');
+            notification.setAttribute('opacity', '1');
+            notification.setAttribute('background', '#000000');
+            notification.setAttribute('padding', '0.1');
+            
+            cam.appendChild(notification);
+
+            // Animation: fade out puis remove
+            setTimeout(() => {
+                let opacity = 1;
+                const fadeInterval = setInterval(() => {
+                    opacity -= 0.05;
+                    if (opacity <= 0) {
+                        clearInterval(fadeInterval);
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    } else {
+                        notification.setAttribute('opacity', opacity.toString());
+                    }
+                }, 50);
+            }, duration);
+        }
+
+        // --- CUSTOMER SYSTEM ---
+        const customers = [];
+        const QUEUE_BASE_POS = { x: 0, y: 1.0, z: -1.8 }; // Position de départ de la file (remonté à hauteur et plus proche)
+        const QUEUE_SPACING = 1.2; // Espacement entre chaque client (augmenté)
+        const coffeeTypes = [
+            '☕ Espresso',
+            '☕ Cappuccino',
+            '☕ Latte',
+            '☕ Americano',
+            '☕ Mocha',
+            '☕ Macchiato'
+        ];
+
+        function spawnCustomer() {
+            // Position dans la file (chaque client derrière le précédent)
+            const queueIndex = customers.length;
+            const x = QUEUE_BASE_POS.x;
+            const y = QUEUE_BASE_POS.y;
+            const z = QUEUE_BASE_POS.z - (queueIndex * QUEUE_SPACING);
+
+            debugEl.textContent = `� SPAWN ${queueIndex + 1} at ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}`;
+
+            // TEST: Créer une sphère VERTE pour confirmer le spawn
+            const testSphere = document.createElement('a-sphere');
+            testSphere.setAttribute('position', `${x} ${y} ${z}`);
+            testSphere.setAttribute('radius', '0.3');
+            testSphere.setAttribute('color', '#00ff00');
+            sceneEl.appendChild(testSphere);
+            debugEl.textContent = `🟢 SPHERE ${queueIndex + 1} CRÉÉE!`;
+
+            // Create customer entity avec le modèle
+            const customer = document.createElement('a-entity');
+            customer.setAttribute('gltf-model', 'url(models/Grandpa.glb)'); // Même format que les autres
+            customer.setAttribute('scale', '0.5 0.5 0.5');
+            customer.setAttribute('position', `${x + 0.5} ${y} ${z}`); // Décalé à droite de la sphère
+            customer.setAttribute('rotation', '0 0 0');
+            customer.classList.add('customer');
+            customer.id = `customer-${Date.now()}`;
+
+            // Event quand le modèle est chargé
+            customer.addEventListener('model-loaded', () => {
+                debugEl.textContent = `✅ GRANDPA ${queueIndex + 1} LOADED!`;
+                testSphere.setAttribute('color', '#0000ff'); // Sphère devient bleue quand modèle chargé
+            });
+
+            // Random coffee order
+            const order = coffeeTypes[Math.floor(Math.random() * coffeeTypes.length)];
+            customer.dataset.order = order;
+
+            // Create order panel above customer - TEXT ONLY APPROACH
+            const textPanel = document.createElement('a-text');
+            textPanel.setAttribute('value', order);
+            textPanel.setAttribute('align', 'center');
+            textPanel.setAttribute('position', '0 0.9 0'); // Bien au-dessus
+            textPanel.setAttribute('width', '2');
+            textPanel.setAttribute('color', '#000000');
+            textPanel.setAttribute('background', '#ffffff');
+            textPanel.setAttribute('background-color', '#ffffff');
+            textPanel.setAttribute('opacity', '1');
+            textPanel.setAttribute('baseline', 'center');
+            textPanel.setAttribute('wrap-count', '20');
+            textPanel.setAttribute('side', 'double');
+            textPanel.classList.add('order-panel');
+
+            customer.appendChild(textPanel);
+            sceneEl.appendChild(customer);
+            customers.push(customer); // CRITIQUE: ajouter au tableau!
+
+            // Show AR notification
+            showARNotification(`👴 CLIENT ${queueIndex + 1}\n${order}`, 3000);
+
+            // Add visual indicator for first customer in queue
+            updateQueueIndicators();
+
+            // Make text panel always face camera
+            const cam = document.getElementById('cam');
+            const textRotationInterval = setInterval(() => {
+                if (!customer.parentNode || !textPanel.object3D || !cam || !cam.object3D) {
+                    clearInterval(textRotationInterval);
+                    return;
+                }
+                try {
+                    const camWorldPos = new THREE.Vector3();
+                    const textWorldPos = new THREE.Vector3();
+                    cam.object3D.getWorldPosition(camWorldPos);
+                    textPanel.object3D.getWorldPosition(textWorldPos);
+                    textPanel.object3D.lookAt(camWorldPos);
+                } catch(e) {
+                    // Silently fail
+                }
+            }, 100);
+
+            // Auto-remove customer after 45 seconds if not served
+            setTimeout(() => {
+                removeCustomer(customer);
+            }, 45000);
+        }
+
+        function removeCustomer(customer) {
+            if (!customer || !customer.parentNode) return;
+
+            const idx = customers.indexOf(customer);
+            if (idx > -1) {
+                customers.splice(idx, 1);
+            }
+
+            customer.parentNode.removeChild(customer);
+            console.log('👴 Client parti');
+
+            // Faire avancer la file : déplacer tous les clients restants
+            customers.forEach((c, index) => {
+                const newZ = QUEUE_BASE_POS.z - (index * QUEUE_SPACING);
+                const currentPos = c.getAttribute('position');
+                c.setAttribute('position', `${QUEUE_BASE_POS.x} ${QUEUE_BASE_POS.y} ${newZ}`);
+            });
+
+            // Update indicators after queue moves
+            updateQueueIndicators();
+        }
+
+        // Update visual indicators to show which customer is next
+        function updateQueueIndicators() {
+            customers.forEach((customer, index) => {
+                const textPanel = customer.querySelector('.order-panel');
+                if (!textPanel) return;
+
+                if (index === 0) {
+                    // First customer - highlight with green text
+                    textPanel.setAttribute('color', '#00ff00');
+                } else {
+                    // Other customers - black text
+                    textPanel.setAttribute('color', '#000000');
+                }
+            });
+        }
+
+        function checkCoffeeDelivery() {
+            if (customers.length === 0) return;
+
+            const cupPos = new THREE.Vector3();
+            const customerPos = new THREE.Vector3();
+            const DELIVERY_RADIUS = 0.8; // Distance to deliver coffee (augmentée)
+
+            // Check all coffee cups
+            const coffeeCups = [...spawnedObjects].filter(obj => {
+                if (!obj || !obj.id) return false;
+                return obj.id.includes('coffee-cup');
+            });
+
+            coffeeCups.forEach(cup => {
+                if (!cup || !cup.object3D) return;
+                cup.object3D.getWorldPosition(cupPos);
+
+                // ONLY check the FIRST customer in queue (index 0)
+                const customer = customers[0];
+                if (!customer || !customer.object3D) return;
+                
+                customer.object3D.getWorldPosition(customerPos);
+
+                const distance = cupPos.distanceTo(customerPos);
+
+                if (distance < DELIVERY_RADIUS) {
+                    // Coffee delivered!
+                    showARNotification('✅ CLIENT SERVI!\\nBRAVO!', 2000);
+
+                    // Remove coffee cup
+                    removeObjectFromScene(cup);
+
+                    // Remove customer immediately
+                    setTimeout(() => {
+                        removeCustomer(customer);
+                    }, 500);
+
+                    // Spawn new customer after a delay
+                    setTimeout(() => {
+                        spawnCustomer();
+                    }, 3000 + Math.random() * 5000);
+                }
+            });
+        }
+
+        // Check coffee delivery periodically
+        setInterval(() => {
+            checkCoffeeDelivery();
+        }, 500);
 
     }, 100);
 });
