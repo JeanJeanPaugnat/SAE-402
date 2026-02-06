@@ -101,7 +101,7 @@ window.addEventListener('load', () => {
             cup.setAttribute('class', 'clickable grabbable');
             cup.classList.add('coffee-cup'); // Ajouter classe spécifique
             cup.id = `coffee-cup-${Date.now()}`;
-            
+
             // Marquer comme objet café pour le grab
             cup.dataset.isCoffee = 'true';
 
@@ -308,40 +308,25 @@ window.addEventListener('load', () => {
             if (welcomePanel && welcomePanel.parentNode) {
                 welcomePanel.parentNode.removeChild(welcomePanel);
                 welcomePanel = null;
-                
-                debugEl.textContent = '🟢 PANEL FERMÉ - TEST SPAWN';
-                
-                // TEST 1: Créer un cube simple pour tester
-                setTimeout(() => {
-                    debugEl.textContent = '🟢 CREATING TEST CUBE...';
-                    const testCube = document.createElement('a-box');
-                    testCube.setAttribute('position', '0 1.5 -2');
-                    testCube.setAttribute('color', '#ff0000');
-                    testCube.setAttribute('width', '0.5');
-                    testCube.setAttribute('height', '0.5');
-                    testCube.setAttribute('depth', '0.5');
-                    sceneEl.appendChild(testCube);
-                    debugEl.textContent = '🔴 CUBE ROUGE CRÉÉ!';
-                }, 500);
-                
-                // TEST 2: Spawner un vrai client
-                setTimeout(() => {
-                    debugEl.textContent = '👴 SPAWNING GRANDPA...';
-                    spawnCustomer();
-                    debugEl.textContent = '👴 GRANDPA SPAWNED!';
-                }, 3000);
-                
-                // TEST 3: Spawner plus de clients
-                setTimeout(() => {
-                    const spawnInterval = setInterval(() => {
-                        if (customers.length < 3) {
-                            debugEl.textContent = `👴 SPAWN CLIENT ${customers.length + 1}`;
-                            spawnCustomer();
-                        }
-                    }, 10000);
-                }, 10000);
+                debugEl.textContent = '🟢 PANEL FERMÉ';
+                // Trigger initial customer spawn
+                setTimeout(spawnCustomer, 2000);
             }
         }
+
+        // ... (lines 346-1188 unchanged usually, but I need to jump to customer section)
+        // I will use multi_replace if I could, but here I am replacing start and end block?
+        // Wait, replace_file_content replaces contiguous block.
+        // I need to replace closeWelcomePanel (lines 307-344) AND customer logic (lines 1191+).
+        // Since they are far apart, I should use multi_replace.
+        // But the prompt below says "Instruction: Remove test code from closeWelcomePanel and update customer logic."
+        // I will use multi_replace_file_content.
+
+        // Wait, I am calling replace_file_content.
+        // I must target contiguous block.
+        // I will do 2 separate calls or use multi_replace.
+        // I'll restart and use multi_replace_file_content.
+
 
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
@@ -1168,7 +1153,7 @@ window.addEventListener('load', () => {
             notification.setAttribute('opacity', '1');
             notification.setAttribute('background', '#000000');
             notification.setAttribute('padding', '0.1');
-            
+
             cam.appendChild(notification);
 
             // Animation: fade out puis remove
@@ -1188,183 +1173,97 @@ window.addEventListener('load', () => {
             }, duration);
         }
 
-        // --- CUSTOMER SYSTEM ---
+        // --- SIMPLE CUSTOMER SYSTEM ---
         const customers = [];
-        const QUEUE_BASE_POS = { x: 0, y: 1.0, z: -1.8 }; // Position de départ de la file (remonté à hauteur et plus proche)
-        const QUEUE_SPACING = 1.2; // Espacement entre chaque client (augmenté)
-        const coffeeTypes = [
-            '☕ Espresso',
-            '☕ Cappuccino',
-            '☕ Latte',
-            '☕ Americano',
-            '☕ Mocha',
-            '☕ Macchiato'
-        ];
+        const QUEUE_POS = { x: 0, y: 0.75, z: -1.5 }; // z=-1.5m devant
 
         function spawnCustomer() {
-            // Position dans la file (chaque client derrière le précédent)
-            const queueIndex = customers.length;
-            const x = QUEUE_BASE_POS.x;
-            const y = QUEUE_BASE_POS.y;
-            const z = QUEUE_BASE_POS.z - (queueIndex * QUEUE_SPACING);
+            // Limite à 1 client pour le test
+            if (customers.length > 0) return;
 
-            debugEl.textContent = `� SPAWN ${queueIndex + 1} at ${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)}`;
+            debugEl.textContent = '🧍 NEW CUSTOMER (CUBE)';
 
-            // TEST: Créer une sphère VERTE pour confirmer le spawn
-            const testSphere = document.createElement('a-sphere');
-            testSphere.setAttribute('position', `${x} ${y} ${z}`);
-            testSphere.setAttribute('radius', '0.3');
-            testSphere.setAttribute('color', '#00ff00');
-            sceneEl.appendChild(testSphere);
-            debugEl.textContent = `🟢 SPHERE ${queueIndex + 1} CRÉÉE!`;
-
-            // Create customer entity avec le modèle
-            const customer = document.createElement('a-entity');
-            customer.setAttribute('gltf-model', 'url(models/Grandpa.glb)'); // Même format que les autres
-            customer.setAttribute('scale', '0.5 0.5 0.5');
-            customer.setAttribute('position', `${x + 0.5} ${y} ${z}`); // Décalé à droite de la sphère
-            customer.setAttribute('rotation', '0 0 0');
+            // Placeholder: Un grand cube rouge/bleu représentant le client
+            const customer = document.createElement('a-box');
+            customer.setAttribute('position', `${QUEUE_POS.x} ${QUEUE_POS.y} ${QUEUE_POS.z}`);
+            customer.setAttribute('width', '0.5');
+            customer.setAttribute('height', '1.5'); // 1m50
+            customer.setAttribute('depth', '0.5');
+            customer.setAttribute('color', '#3498db'); // Bleu
+            customer.setAttribute('opacity', '0.8');
             customer.classList.add('customer');
             customer.id = `customer-${Date.now()}`;
 
-            // Event quand le modèle est chargé
-            customer.addEventListener('model-loaded', () => {
-                debugEl.textContent = `✅ GRANDPA ${queueIndex + 1} LOADED!`;
-                testSphere.setAttribute('color', '#0000ff'); // Sphère devient bleue quand modèle chargé
-            });
+            // Panneau de commande (Texte)
+            const text = document.createElement('a-text');
+            text.setAttribute('value', 'Je veux un café !');
+            text.setAttribute('align', 'center');
+            text.setAttribute('position', '0 0.9 0.3'); // Au dessus de la tête
+            text.setAttribute('scale', '0.5 0.5 0.5');
+            text.setAttribute('color', 'white');
+            customer.appendChild(text);
 
-            // Random coffee order
-            const order = coffeeTypes[Math.floor(Math.random() * coffeeTypes.length)];
-            customer.dataset.order = order;
-
-            // Create order panel above customer - TEXT ONLY APPROACH
-            const textPanel = document.createElement('a-text');
-            textPanel.setAttribute('value', order);
-            textPanel.setAttribute('align', 'center');
-            textPanel.setAttribute('position', '0 0.9 0'); // Bien au-dessus
-            textPanel.setAttribute('width', '2');
-            textPanel.setAttribute('color', '#000000');
-            textPanel.setAttribute('background', '#ffffff');
-            textPanel.setAttribute('background-color', '#ffffff');
-            textPanel.setAttribute('opacity', '1');
-            textPanel.setAttribute('baseline', 'center');
-            textPanel.setAttribute('wrap-count', '20');
-            textPanel.setAttribute('side', 'double');
-            textPanel.classList.add('order-panel');
-
-            customer.appendChild(textPanel);
             sceneEl.appendChild(customer);
-            customers.push(customer); // CRITIQUE: ajouter au tableau!
+            customers.push(customer);
 
-            // Show AR notification
-            showARNotification(`👴 CLIENT ${queueIndex + 1}\n${order}`, 3000);
-
-            // Add visual indicator for first customer in queue
-            updateQueueIndicators();
-
-            // Make text panel always face camera
-            const cam = document.getElementById('cam');
-            const textRotationInterval = setInterval(() => {
-                if (!customer.parentNode || !textPanel.object3D || !cam || !cam.object3D) {
-                    clearInterval(textRotationInterval);
-                    return;
-                }
-                try {
-                    const camWorldPos = new THREE.Vector3();
-                    const textWorldPos = new THREE.Vector3();
-                    cam.object3D.getWorldPosition(camWorldPos);
-                    textPanel.object3D.getWorldPosition(textWorldPos);
-                    textPanel.object3D.lookAt(camWorldPos);
-                } catch(e) {
-                    // Silently fail
-                }
-            }, 100);
-
-            // Auto-remove customer after 45 seconds if not served
-            setTimeout(() => {
-                removeCustomer(customer);
-            }, 45000);
+            showARNotification('� Nouveau Client !', 2000);
         }
 
         function removeCustomer(customer) {
-            if (!customer || !customer.parentNode) return;
-
+            if (!customer) return;
             const idx = customers.indexOf(customer);
-            if (idx > -1) {
-                customers.splice(idx, 1);
+            if (idx > -1) customers.splice(idx, 1);
+
+            if (customer.parentNode) {
+                customer.parentNode.removeChild(customer);
             }
-
-            customer.parentNode.removeChild(customer);
-            console.log('👴 Client parti');
-
-            // Faire avancer la file : déplacer tous les clients restants
-            customers.forEach((c, index) => {
-                const newZ = QUEUE_BASE_POS.z - (index * QUEUE_SPACING);
-                const currentPos = c.getAttribute('position');
-                c.setAttribute('position', `${QUEUE_BASE_POS.x} ${QUEUE_BASE_POS.y} ${newZ}`);
-            });
-
-            // Update indicators after queue moves
-            updateQueueIndicators();
-        }
-
-        // Update visual indicators to show which customer is next
-        function updateQueueIndicators() {
-            customers.forEach((customer, index) => {
-                const textPanel = customer.querySelector('.order-panel');
-                if (!textPanel) return;
-
-                if (index === 0) {
-                    // First customer - highlight with green text
-                    textPanel.setAttribute('color', '#00ff00');
-                } else {
-                    // Other customers - black text
-                    textPanel.setAttribute('color', '#000000');
-                }
-            });
+            console.log('Client despawned via removeCustomer');
         }
 
         function checkCoffeeDelivery() {
             if (customers.length === 0) return;
 
-            const cupPos = new THREE.Vector3();
-            const customerPos = new THREE.Vector3();
-            const DELIVERY_RADIUS = 0.8; // Distance to deliver coffee (augmentée)
+            const customer = customers[0];
+            if (!customer || !customer.object3D) return;
 
-            // Check all coffee cups
-            const coffeeCups = [...spawnedObjects].filter(obj => {
-                if (!obj || !obj.id) return false;
-                return obj.id.includes('coffee-cup');
-            });
+            const custPos = new THREE.Vector3();
+            customer.object3D.getWorldPosition(custPos);
 
-            coffeeCups.forEach(cup => {
-                if (!cup || !cup.object3D) return;
+            // Chercher tous les objets "tasse de café"
+            // On suppose que les tasses ont la classe 'coffee-cup' ou un ID spécifique
+            // ou on itère sur spawnedObjects et on vérifie le modèle/nom
+
+            const cups = [...spawnedObjects].filter(obj =>
+                (obj.classList && obj.classList.contains('coffee-cup')) ||
+                (obj.dataset && obj.dataset.isCoffee === 'true') ||
+                (obj.id && obj.id.includes('coffee-cup'))
+            );
+
+            cups.forEach(cup => {
+                if (!cup.object3D) return;
+                const cupPos = new THREE.Vector3();
                 cup.object3D.getWorldPosition(cupPos);
 
-                // ONLY check the FIRST customer in queue (index 0)
-                const customer = customers[0];
-                if (!customer || !customer.object3D) return;
-                
-                customer.object3D.getWorldPosition(customerPos);
+                // Distance simple horizontale (ignorer hauteur un peu)
+                const dist = new THREE.Vector2(custPos.x, custPos.z).distanceTo(new THREE.Vector2(cupPos.x, cupPos.z));
+                const heightDiff = Math.abs(custPos.y - cupPos.y);
 
-                const distance = cupPos.distanceTo(customerPos);
+                // TOLERANCE INCREASED (1.2m radius, 1.5m height)
+                if (dist < 1.2 && heightDiff < 1.5) {
+                    // Interaction validée !
+                    console.log('✅ CAFÉ DONNÉ !');
+                    showARNotification('✅ MERCI ! A LE PROCHAIN !', 3000);
 
-                if (distance < DELIVERY_RADIUS) {
-                    // Coffee delivered!
-                    showARNotification('✅ CLIENT SERVI!\\nBRAVO!', 2000);
+                    // Supprimer la tasse
+                    if (cup.parentNode) cup.parentNode.removeChild(cup);
+                    const cupIdx = spawnedObjects.indexOf(cup);
+                    if (cupIdx > -1) spawnedObjects.splice(cupIdx, 1);
 
-                    // Remove coffee cup
-                    removeObjectFromScene(cup);
+                    // Supprimer le client
+                    removeCustomer(customer);
 
-                    // Remove customer immediately
-                    setTimeout(() => {
-                        removeCustomer(customer);
-                    }, 500);
-
-                    // Spawn new customer after a delay
-                    setTimeout(() => {
-                        spawnCustomer();
-                    }, 3000 + Math.random() * 5000);
+                    // Spawner un autre après délai
+                    setTimeout(spawnCustomer, 3000);
                 }
             });
         }
