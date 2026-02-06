@@ -10,10 +10,17 @@ window.addEventListener('load', () => {
     setTimeout(() => {
         const debugEl = document.getElementById('debug');
         const surfacesEl = document.getElementById('surfaces');
-        const btn = document.getElementById('btn');
+        const startBtn = document.getElementById('start-btn');
+        const landingPage = document.getElementById('landing-page');
+        const gameContainer = document.getElementById('game-container');
         const sceneEl = document.getElementById('scene');
         const cubeEl = document.getElementById('cube');
         let cursorEl = document.getElementById('cursor'); // Changed to let
+
+        // Hide scene initially
+        if (sceneEl) {
+            sceneEl.style.display = 'none';
+        }
 
         if (!sceneEl || !cubeEl) {
             debugEl.textContent = 'Éléments manquants!';
@@ -533,18 +540,42 @@ window.addEventListener('load', () => {
             console.log(`📦 Spawned ${type} at`, spawnPos);
         }
 
-        btn.onclick = async () => {
-            debugEl.textContent = 'Démarrage...';
+        // --- START BUTTON HANDLER (Landing Page → Loader → AR) ---
+        startBtn.onclick = async () => {
+            console.log('☕ Start button clicked!');
 
-            try {
-                xrSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['local-floor'],
-                    optionalFeatures: ['hit-test', 'dom-overlay'],
-                    domOverlay: { root: document.getElementById('overlay') }
-                });
+            // 1. Hide landing page
+            if (landingPage) {
+                landingPage.style.display = 'none';
+            }
 
-                sceneEl.renderer.xr.setSession(xrSession);
-                btn.style.display = 'none';
+            // 2. Show loader
+            if (gameContainer) {
+                gameContainer.classList.remove('hidden');
+                gameContainer.classList.add('visible');
+            }
+
+            // 3. After loader delay, launch AR
+            setTimeout(async () => {
+                // Hide loader, show scene
+                if (gameContainer) {
+                    gameContainer.classList.remove('visible');
+                    gameContainer.classList.add('hidden');
+                }
+                if (sceneEl) {
+                    sceneEl.style.display = 'block';
+                }
+
+                debugEl.textContent = 'Démarrage AR...';
+
+                try {
+                    xrSession = await navigator.xr.requestSession('immersive-ar', {
+                        requiredFeatures: ['local-floor'],
+                        optionalFeatures: ['hit-test', 'dom-overlay'],
+                        domOverlay: { root: document.getElementById('overlay') }
+                    });
+
+                    sceneEl.renderer.xr.setSession(xrSession);
 
                 // Controllers Three.js
                 const ctrl0 = sceneEl.renderer.xr.getController(0);
@@ -595,7 +626,10 @@ window.addEventListener('load', () => {
 
             } catch (e) {
                 debugEl.textContent = 'Erreur: ' + e.message;
+                // Show scene anyway on error
+                if (sceneEl) sceneEl.style.display = 'block';
             }
+            }, 2500); // Loader delay (2.5 seconds)
         };
 
         function xrLoop(time, frame) {
