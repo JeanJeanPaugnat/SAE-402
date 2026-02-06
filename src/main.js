@@ -10,13 +10,21 @@ window.addEventListener('load', () => {
     setTimeout(() => {
         const debugEl = document.getElementById('debug');
         const surfacesEl = document.getElementById('surfaces');
-        const btn = document.getElementById('btn');
+        const startBtn = document.getElementById('start-btn');
+        const landingPage = document.getElementById('landing-page');
+        const gameContainer = document.getElementById('game-container');
         const sceneEl = document.getElementById('scene');
         const cubeEl = document.getElementById('cube');
         let cursorEl = document.getElementById('cursor'); // Changed to let
 
+        // Hide scene initially
+        if (sceneEl) {
+            sceneEl.style.display = 'none';
+        }
+
         if (!sceneEl || !cubeEl) {
-            debugEl.textContent = 'Éléments manquants!';
+            if (debugEl) debugEl.textContent = 'Éléments manquants!';
+            console.error('Éléments manquants!');
             return;
         }
 
@@ -34,7 +42,7 @@ window.addEventListener('load', () => {
             sceneEl.appendChild(cursorEl);
         }
 
-        debugEl.textContent = 'Prêt!';
+        if (debugEl) debugEl.textContent = 'Prêt!';
 
         // ENSURE CURSOR EXISTS (Robustness Fix)
         if (!cursorEl) {
@@ -205,30 +213,30 @@ window.addEventListener('load', () => {
 
             // --- PAPER BACKGROUND ---
             const paper = document.createElement('a-plane');
-            paper.setAttribute('width', '0.84');
-            paper.setAttribute('height', '1.02');
+            paper.setAttribute('width', '1.02');
+            paper.setAttribute('height', '1.24');
             paper.setAttribute('color', '#f5f0e1'); // Couleur papier vieilli
             paper.setAttribute('material', 'shader: flat; side: double');
             paper.setAttribute('position', '0 0 0');
             // Légère rotation pour effet manuscrit
-            paper.setAttribute('rotation', '0 0 -2');
+            // paper.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(paper);
 
             // --- PAPER BORDER (Shadow effect) ---
             const shadow = document.createElement('a-plane');
-            shadow.setAttribute('width', '0.86');
-            shadow.setAttribute('height', '1.04');
+            shadow.setAttribute('width', '1.04');
+            shadow.setAttribute('height', '1.26');
             shadow.setAttribute('color', '#8b7355');
             shadow.setAttribute('opacity', '0.3');
             shadow.setAttribute('position', '0.01 -0.01 -0.01');
-            shadow.setAttribute('rotation', '0 0 -2');
+            // shadow.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(shadow);
 
             // --- TITLE ---
             const title = document.createElement('a-text');
             title.setAttribute('value', '~ HOLO BARISTA ~');
             title.setAttribute('align', 'center');
-            title.setAttribute('position', '0 0.6 0.01');
+            title.setAttribute('position', '0 0.56 0.01');
             title.setAttribute('width', '1.5');
             title.setAttribute('color', '#2d1810'); // Brun foncé
             title.setAttribute('font', 'mozillavr');
@@ -269,7 +277,7 @@ window.addEventListener('load', () => {
             closeBtn.setAttribute('height', '0.06');
             closeBtn.setAttribute('depth', '0.02');
             closeBtn.setAttribute('color', '#8b4513');
-            closeBtn.setAttribute('position', '0 -0.6 0.02');
+            closeBtn.setAttribute('position', '0 -0.55 0.02');
             closeBtn.setAttribute('class', 'clickable');
             closeBtn.id = 'welcome-close-btn';
 
@@ -533,18 +541,42 @@ window.addEventListener('load', () => {
             console.log(`📦 Spawned ${type} at`, spawnPos);
         }
 
-        btn.onclick = async () => {
-            debugEl.textContent = 'Démarrage...';
+        // --- START BUTTON HANDLER (Landing Page → Loader → AR) ---
+        startBtn.onclick = async () => {
+            console.log('☕ Start button clicked!');
 
-            try {
-                xrSession = await navigator.xr.requestSession('immersive-ar', {
-                    requiredFeatures: ['local-floor'],
-                    optionalFeatures: ['hit-test', 'dom-overlay'],
-                    domOverlay: { root: document.getElementById('overlay') }
-                });
+            // 1. Hide landing page
+            if (landingPage) {
+                landingPage.style.display = 'none';
+            }
 
-                sceneEl.renderer.xr.setSession(xrSession);
-                btn.style.display = 'none';
+            // 2. Show loader
+            if (gameContainer) {
+                gameContainer.classList.remove('hidden');
+                gameContainer.classList.add('visible');
+            }
+
+            // 3. After loader delay, launch AR
+            setTimeout(async () => {
+                // Hide loader, show scene
+                if (gameContainer) {
+                    gameContainer.classList.remove('visible');
+                    gameContainer.classList.add('hidden');
+                }
+                if (sceneEl) {
+                    sceneEl.style.display = 'block';
+                }
+
+                if (debugEl) debugEl.textContent = 'Démarrage AR...';
+
+                try {
+                    xrSession = await navigator.xr.requestSession('immersive-ar', {
+                        requiredFeatures: ['local-floor'],
+                        optionalFeatures: ['hit-test', 'dom-overlay'],
+                        domOverlay: { root: document.getElementById('overlay') }
+                    });
+
+                    sceneEl.renderer.xr.setSession(xrSession);
 
                 // Controllers Three.js
                 const ctrl0 = sceneEl.renderer.xr.getController(0);
@@ -576,7 +608,7 @@ window.addEventListener('load', () => {
                 // CREATE HUD MENU (but hidden)
                 createHUDInventory();
 
-                debugEl.textContent = 'AR OK! Read the instructions';
+                if (debugEl) debugEl.textContent = 'AR OK! Read the instructions';
 
                 // Setup hit-test après délai
                 setTimeout(async () => {
@@ -584,9 +616,9 @@ window.addEventListener('load', () => {
                         xrRefSpace = sceneEl.renderer.xr.getReferenceSpace();
                         const viewer = await xrSession.requestReferenceSpace('viewer');
                         hitTestSource = await xrSession.requestHitTestSource({ space: viewer });
-                        debugEl.textContent = 'Hit-test OK!';
+                        if (debugEl) debugEl.textContent = 'Hit-test OK!';
                     } catch (e) {
-                        debugEl.textContent = 'Pas de hit-test';
+                        if (debugEl) debugEl.textContent = 'Pas de hit-test';
                     }
 
                     // Démarrer boucle XR
@@ -594,8 +626,12 @@ window.addEventListener('load', () => {
                 }, 500);
 
             } catch (e) {
-                debugEl.textContent = 'Erreur: ' + e.message;
+                if (debugEl) debugEl.textContent = 'Erreur: ' + e.message;
+                console.error('Erreur AR:', e.message);
+                // Show scene anyway on error
+                if (sceneEl) sceneEl.style.display = 'block';
             }
+            }, 2500); // Loader delay (2.5 seconds)
         };
 
         function xrLoop(time, frame) {
@@ -959,11 +995,11 @@ window.addEventListener('load', () => {
             });
 
             if (!closestEl) {
-                debugEl.textContent = 'Rien à attraper';
+                if (debugEl) debugEl.textContent = 'Rien à attraper';
                 return;
             }
 
-            debugEl.textContent = 'GRAB!';
+            if (debugEl) debugEl.textContent = 'GRAB!';
 
             grabbed = true;
             grabController = controller;
@@ -980,7 +1016,7 @@ window.addEventListener('load', () => {
                 currentGrabbedEl.body.updateMassProperties();
             }
 
-            debugEl.textContent = 'ATTRAPÉ!';
+            if (debugEl) debugEl.textContent = 'ATTRAPÉ!';
         }
 
         function release() {
@@ -1015,7 +1051,7 @@ window.addEventListener('load', () => {
             grabbed = false;
             grabController = null;
             currentGrabbedEl = null;
-            debugEl.textContent = 'Lâché!';
+            if (debugEl) debugEl.textContent = 'Lâché!';
         }
 
 
@@ -1034,7 +1070,7 @@ window.addEventListener('load', () => {
             sceneEl.appendChild(box);
 
             surfaces.push({ x, y, z });
-            surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
+            if (surfacesEl) surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
 
             if (surfaces.length > 200) surfaces.shift();
         }
@@ -1104,7 +1140,7 @@ window.addEventListener('load', () => {
                         // Remove
                         if (stainObj.el.parentNode) stainObj.el.parentNode.removeChild(stainObj.el);
                         stains.splice(index, 1);
-                        debugEl.textContent = 'Tache nettoyée !';
+                        if (debugEl) debugEl.textContent = 'Tache nettoyée !';
 
                         // Spawn new one occasionally
                         if (Math.random() > 0.5) spawnRandomStain();
