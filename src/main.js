@@ -1194,17 +1194,18 @@ window.addEventListener('load', () => {
 
             // Panneau de commande (Texte)
             const text = document.createElement('a-text');
-            text.setAttribute('value', 'Je veux un café !');
+            text.setAttribute('value', 'Throw me a coffee!');
             text.setAttribute('align', 'center');
-            text.setAttribute('position', '0 0.9 0.3'); // Au dessus de la tête
-            text.setAttribute('scale', '0.5 0.5 0.5');
-            text.setAttribute('color', 'white');
+            text.setAttribute('position', '0 2.2 0.3'); // Au dessus de la tête (modèle ~1.8m)
+            text.setAttribute('scale', '1.5 1.5 1.5');
+            text.setAttribute('color', '#FFD700');
+            text.setAttribute('font', 'mozillavr');
             customer.appendChild(text);
 
             sceneEl.appendChild(customer);
             customers.push(customer);
 
-            showARNotification('� Nouveau Client !', 2000);
+            showARNotification('☕ New Customer!', 2000);
         }
 
         function removeCustomer(customer) {
@@ -1224,13 +1225,14 @@ window.addEventListener('load', () => {
             const customer = customers[0];
             if (!customer || !customer.object3D) return;
 
-            const custPos = new THREE.Vector3();
-            customer.object3D.getWorldPosition(custPos);
+            // Position de base du client (au sol)
+            const custBasePos = new THREE.Vector3();
+            customer.object3D.getWorldPosition(custBasePos);
+            
+            // Centre du client (environ mi-hauteur du modèle, ~0.9m au dessus du sol)
+            const custCenterPos = new THREE.Vector3(custBasePos.x, custBasePos.y + 0.9, custBasePos.z);
 
             // Chercher tous les objets "tasse de café"
-            // On suppose que les tasses ont la classe 'coffee-cup' ou un ID spécifique
-            // ou on itère sur spawnedObjects et on vérifie le modèle/nom
-
             const cups = [...spawnedObjects].filter(obj =>
                 (obj.classList && obj.classList.contains('coffee-cup')) ||
                 (obj.dataset && obj.dataset.isCoffee === 'true') ||
@@ -1242,15 +1244,19 @@ window.addEventListener('load', () => {
                 const cupPos = new THREE.Vector3();
                 cup.object3D.getWorldPosition(cupPos);
 
-                // Distance simple horizontale (ignorer hauteur un peu)
-                const dist = new THREE.Vector2(custPos.x, custPos.z).distanceTo(new THREE.Vector2(cupPos.x, cupPos.z));
-                const heightDiff = Math.abs(custPos.y - cupPos.y);
+                // Distance 3D complète vers le centre du client
+                const dist3D = custCenterPos.distanceTo(cupPos);
+                
+                // Distance horizontale seule (pour debug)
+                const distHoriz = new THREE.Vector2(custBasePos.x, custBasePos.z).distanceTo(new THREE.Vector2(cupPos.x, cupPos.z));
+                
+                // La tasse doit être proche du client (rayon 0.8m en 3D ou 0.6m horizontal + hauteur 0-2m)
+                const isNearby = dist3D < 1.0 || (distHoriz < 0.8 && cupPos.y > 0 && cupPos.y < 2.0);
 
-                // TOLERANCE INCREASED (1.2m radius, 1.5m height)
-                if (dist < 1.2 && heightDiff < 1.5) {
+                if (isNearby) {
                     // Interaction validée !
-                    console.log('✅ CAFÉ DONNÉ !');
-                    showARNotification('✅ MERCI ! A LE PROCHAIN !', 3000);
+                    console.log('✅ COFFEE DELIVERED! Dist3D:', dist3D.toFixed(2), 'DistH:', distHoriz.toFixed(2));
+                    showARNotification('✅ THANKS! Perfect coffee!', 3000);
 
                     // Supprimer la tasse
                     if (cup.parentNode) cup.parentNode.removeChild(cup);
