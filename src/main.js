@@ -105,9 +105,13 @@ window.addEventListener('load', () => {
             cup.setAttribute('gltf-model', 'url(models/Coffeecup.glb)');
             cup.setAttribute('scale', '0.08 0.08 0.08');
             cup.setAttribute('position', `${cupPos.x} ${cupPos.y} ${cupPos.z}`);
-            cup.setAttribute('dynamic-body', 'mass:0.2;linearDamping:0.3;angularDamping:0.3');
+            cup.setAttribute('dynamic-body', 'mass:0.3;linearDamping:0.5;angularDamping:0.5');
             cup.setAttribute('class', 'clickable grabbable');
+            cup.classList.add('coffee-cup'); // Ajouter classe spécifique
             cup.id = `coffee-cup-${Date.now()}`;
+
+            // Marquer comme objet café pour le grab
+            cup.dataset.isCoffee = 'true';
 
             sceneEl.appendChild(cup);
             spawnedObjects.push(cup);
@@ -140,6 +144,7 @@ window.addEventListener('load', () => {
         // --- TRASHCAN DELETION SYSTEM ---
         const trashcans = []; // Liste des poubelles dans la scène
         const TRASH_RADIUS = 0.2; // Rayon de détection pour la suppression
+        let giveCoffeeLock = false; // Lock pour donner le café
 
         function removeObjectFromScene(objEl) {
             if (!objEl || !objEl.parentNode) return;
@@ -312,9 +317,25 @@ window.addEventListener('load', () => {
             if (welcomePanel && welcomePanel.parentNode) {
                 welcomePanel.parentNode.removeChild(welcomePanel);
                 welcomePanel = null;
-                console.log('📜 Welcome Panel Closed');
+                debugEl.textContent = '🟢 PANEL FERMÉ';
+                // Trigger initial customer spawn
+                setTimeout(spawnCustomer, 2000);
             }
         }
+
+        // ... (lines 346-1188 unchanged usually, but I need to jump to customer section)
+        // I will use multi_replace if I could, but here I am replacing start and end block?
+        // Wait, replace_file_content replaces contiguous block.
+        // I need to replace closeWelcomePanel (lines 307-344) AND customer logic (lines 1191+).
+        // Since they are far apart, I should use multi_replace.
+        // But the prompt below says "Instruction: Remove test code from closeWelcomePanel and update customer logic."
+        // I will use multi_replace_file_content.
+
+        // Wait, I am calling replace_file_content.
+        // I must target contiguous block.
+        // I will do 2 separate calls or use multi_replace.
+        // I'll restart and use multi_replace_file_content.
+
 
         // --- 3D INVENTORY HUD (Attached to Camera) ---
         let inventoryEntity = null;
@@ -680,6 +701,9 @@ window.addEventListener('load', () => {
             // --- TRASHCAN COLLISION CHECK ---
             checkTrashcanCollisions();
 
+            // --- COFFEE DELIVERY CHECK ---
+            checkCoffeeDelivery();
+
             // --- MANUEL RAYCASTER & DIAGNOSTICS ---
 
             const ses = sceneEl.renderer.xr.getSession();
@@ -749,10 +773,63 @@ window.addEventListener('load', () => {
                         }
                     }
 
-                    // RIGHT CONTROLLER - Coffee Machine Interaction (Button B)
+                    // RIGHT CONTROLLER - Debug buttons + Give coffee
                     if (source.handedness === 'right' && source.gamepad) {
-                        // Button 5 is usually 'B' on Quest (or 4/3 depending on mapping)
-                        const bBtn = source.gamepad.buttons[5] || source.gamepad.buttons[4];
+                        // Debug: afficher tous les boutons pressés
+                        for (let bi = 0; bi < source.gamepad.buttons.length; bi++) {
+                            if (source.gamepad.buttons[bi].pressed) {
+                                debugEl.textContent = `BTN ${bi} | Grab:${grabbed} | Cup:${currentGrabbedEl ? 'yes' : 'no'} | Cust:${customers.length}`;
+                            }
+                        }
+
+                        // Essayer TOUS les boutons possibles pour A (4, 3, ou autre)
+                        const aBtn = source.gamepad.buttons[4] || source.gamepad.buttons[3];
+
+                        if (aBtn && aBtn.pressed && !giveCoffeeLock) {
+                            debugEl.textContent = `A pressed! Grab:${grabbed}`;
+                            
+                            // Si on tient un café, le donner au client
+                            if (grabbed && currentGrabbedEl) {
+                                const isCoffee = 
+                                    (currentGrabbedEl.classList && currentGrabbedEl.classList.contains('coffee-cup')) ||
+                                    (currentGrabbedEl.dataset && currentGrabbedEl.dataset.isCoffee === 'true') ||
+                                    (currentGrabbedEl.id && currentGrabbedEl.id.includes('coffee-cup'));
+                                
+                                debugEl.textContent = `Coffee:${isCoffee} Cust:${customers.length}`;
+                                
+                                if (isCoffee && customers.length > 0) {
+                                    giveCoffeeLock = true;
+                                    console.log('✅ COFFEE GIVEN BY BUTTON A!');
+                                    showARNotification('✅ THANKS! Perfect coffee!', 3000);
+                                    debugEl.textContent = '✅ Café livré!';
+
+                                    // Supprimer la tasse
+                                    const cupIdx = spawnedObjects.indexOf(currentGrabbedEl);
+                                    if (cupIdx > -1) spawnedObjects.splice(cupIdx, 1);
+                                    if (currentGrabbedEl.body && currentGrabbedEl.body.world) {
+                                        currentGrabbedEl.body.world.removeBody(currentGrabbedEl.body);
+                                    }
+                                    if (currentGrabbedEl.parentNode) currentGrabbedEl.parentNode.removeChild(currentGrabbedEl);
+
+                                    // Reset grab state
+                                    grabbed = false;
+                                    grabController = null;
+                                    currentGrabbedEl = null;
+
+                                    // Supprimer le client
+                                    const customer = customers[0];
+                                    removeCustomer(customer);
+
+                                    setTimeout(() => { giveCoffeeLock = false; }, 500);
+                                }
+                            }
+                        }
+                    }
+
+                    // RIGHT CONTROLLER - Button B = Coffee Machine Interaction
+                    if (source.handedness === 'right' && source.gamepad) {
+                        // Button 5 is usually 'B' on Quest
+                        const bBtn = source.gamepad.buttons[5];
 
                         if (bBtn && bBtn.pressed && !coffeeMachineLock) {
                             // Raycast from right controller to detect coffee machine
@@ -1012,7 +1089,8 @@ window.addEventListener('load', () => {
 
             if (currentGrabbedEl.body) {
                 currentGrabbedEl.body.mass = 0;
-                currentGrabbedEl.body.type = 2;
+                currentGrabbedEl.body.type = 2; // Kinematic
+                currentGrabbedEl.body.collisionResponse = false; // Désactiver les collisions pendant le grab
                 currentGrabbedEl.body.updateMassProperties();
             }
 
@@ -1041,8 +1119,9 @@ window.addEventListener('load', () => {
             if (currentGrabbedEl.body) {
                 const p = currentGrabbedEl.object3D.position;
                 currentGrabbedEl.body.position.set(p.x, p.y, p.z);
-                currentGrabbedEl.body.type = 1;
-                currentGrabbedEl.body.mass = 0.5;
+                currentGrabbedEl.body.type = 1; // Dynamic
+                currentGrabbedEl.body.collisionResponse = true; // Réactiver les collisions
+                currentGrabbedEl.body.mass = 0.3; // Masse pour les objets café
                 currentGrabbedEl.body.updateMassProperties();
                 currentGrabbedEl.body.velocity.set(vx, vy, vz);
                 currentGrabbedEl.body.wakeUp();
@@ -1151,6 +1230,159 @@ window.addEventListener('load', () => {
 
         // Add checkCleaning to loop (using setInterval or inside xrLoop)
         setInterval(checkCleaning, 50); // 20 times per second
+
+        // --- AR NOTIFICATION SYSTEM ---
+        function showARNotification(message, duration = 2000) {
+            const cam = document.getElementById('cam');
+            if (!cam) return;
+
+            // Create notification text in AR
+            const notification = document.createElement('a-text');
+            notification.setAttribute('value', message);
+            notification.setAttribute('align', 'center');
+            notification.setAttribute('position', '0 0.3 -1'); // Devant les yeux
+            notification.setAttribute('width', '3');
+            notification.setAttribute('color', '#00ff00');
+            notification.setAttribute('opacity', '1');
+            notification.setAttribute('background', '#000000');
+            notification.setAttribute('padding', '0.1');
+
+            cam.appendChild(notification);
+
+            // Animation: fade out puis remove
+            setTimeout(() => {
+                let opacity = 1;
+                const fadeInterval = setInterval(() => {
+                    opacity -= 0.05;
+                    if (opacity <= 0) {
+                        clearInterval(fadeInterval);
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                        }
+                    } else {
+                        notification.setAttribute('opacity', opacity.toString());
+                    }
+                }, 50);
+            }, duration);
+        }
+
+        // --- SIMPLE CUSTOMER SYSTEM ---
+        const customers = [];
+        const QUEUE_POS = { x: 0, y: 0.75, z: -1.5 }; // z=-1.5m devant
+
+        function spawnCustomer() {
+            // Limite à 1 client pour le test
+            if (customers.length > 0) return;
+
+            debugEl.textContent = '🧍 NEW CUSTOMER';
+
+            // Modèle 3D du client (Punk)
+            const customer = document.createElement('a-entity');
+            customer.setAttribute('gltf-model', 'url(models/Punk.glb)');
+            customer.setAttribute('position', `${QUEUE_POS.x} 0 ${QUEUE_POS.z}`); // y=0 car le modèle est sur le sol
+            customer.setAttribute('scale', '1 1 1'); // Ajuster selon la taille du modèle
+            customer.setAttribute('rotation', '0 0 0'); // Face à l'utilisateur
+            customer.classList.add('customer');
+            customer.id = `customer-${Date.now()}`;
+
+            // Panneau de commande (Texte)
+            const text = document.createElement('a-text');
+            text.setAttribute('value', 'Grab coffee + Press A!');
+            text.setAttribute('align', 'center');
+            text.setAttribute('position', '0 2.2 0.3'); // Au dessus de la tête (modèle ~1.8m)
+            text.setAttribute('scale', '1 1 1');
+            text.setAttribute('color', '#FFD700');
+            text.setAttribute('font', 'mozillavr');
+            customer.appendChild(text);
+
+            sceneEl.appendChild(customer);
+            customers.push(customer);
+
+            showARNotification('☕ New Customer!', 2000);
+        }
+
+        function removeCustomer(customer) {
+            if (!customer) return;
+            const idx = customers.indexOf(customer);
+            if (idx > -1) customers.splice(idx, 1);
+
+            if (customer.parentNode) {
+                customer.parentNode.removeChild(customer);
+            }
+            console.log('Client despawned via removeCustomer');
+        }
+
+        // Rayon de détection pour la livraison de café (plus large pour faciliter)
+        const CUSTOMER_RADIUS = 1.2;
+        let lastCoffeeDebug = 0;
+        let coffeeDelivered = false; // Flag pour éviter les doubles détections
+
+        function checkCoffeeDelivery() {
+            if (coffeeDelivered) return; // Éviter les appels multiples
+            if (customers.length === 0) return;
+            if (spawnedObjects.length === 0) return;
+
+            const customer = customers[0]; // Premier client seulement
+            if (!customer || !customer.object3D) return;
+
+            const custPos = new THREE.Vector3();
+            customer.object3D.getWorldPosition(custPos);
+
+            // Chercher les tasses directement avec une boucle simple
+            for (let i = spawnedObjects.length - 1; i >= 0; i--) {
+                const obj = spawnedObjects[i];
+                if (!obj) continue;
+
+                // Vérifier si c'est un café
+                const isCoffee = 
+                    (obj.classList && obj.classList.contains('coffee-cup')) ||
+                    (obj.dataset && obj.dataset.isCoffee === 'true') ||
+                    (obj.id && obj.id.includes('coffee-cup'));
+
+                if (!isCoffee) continue;
+                if (!obj.object3D) continue;
+
+                const cupPos = new THREE.Vector3();
+                obj.object3D.getWorldPosition(cupPos);
+
+                // Distance horizontale
+                const distHoriz = Math.sqrt(
+                    Math.pow(custPos.x - cupPos.x, 2) + 
+                    Math.pow(custPos.z - cupPos.z, 2)
+                );
+
+                // Debug throttled
+                const now = Date.now();
+                if (now - lastCoffeeDebug > 1000) {
+                    lastCoffeeDebug = now;
+                    debugEl.textContent = `☕ D:${distHoriz.toFixed(1)}m (need <${CUSTOMER_RADIUS})`;
+                }
+
+                // LIVRAISON!
+                if (distHoriz < CUSTOMER_RADIUS) {
+                    coffeeDelivered = true; // Bloquer les appels suivants
+                    
+                    console.log('✅ COFFEE DELIVERED!');
+                    showARNotification('✅ THANKS! Perfect coffee!', 3000);
+                    debugEl.textContent = '✅ Café livré!';
+
+                    // Supprimer la tasse
+                    spawnedObjects.splice(i, 1);
+                    if (obj.body && obj.body.world) {
+                        obj.body.world.removeBody(obj.body);
+                    }
+                    if (obj.parentNode) obj.parentNode.removeChild(obj);
+
+                    // Supprimer le client
+                    removeCustomer(customer);
+
+                    // Reset flag après 1 seconde
+                    setTimeout(() => { coffeeDelivered = false; }, 1000);
+                    
+                    return; // Sortir immédiatement
+                }
+            }
+        }
 
     }, 100);
 });
