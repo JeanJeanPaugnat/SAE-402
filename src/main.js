@@ -1181,16 +1181,14 @@ window.addEventListener('load', () => {
             // Limite à 1 client pour le test
             if (customers.length > 0) return;
 
-            debugEl.textContent = '🧍 NEW CUSTOMER (CUBE)';
+            debugEl.textContent = '🧍 NEW CUSTOMER';
 
-            // Placeholder: Un grand cube rouge/bleu représentant le client
-            const customer = document.createElement('a-box');
-            customer.setAttribute('position', `${QUEUE_POS.x} ${QUEUE_POS.y} ${QUEUE_POS.z}`);
-            customer.setAttribute('width', '0.5');
-            customer.setAttribute('height', '1.5'); // 1m50
-            customer.setAttribute('depth', '0.5');
-            customer.setAttribute('color', '#3498db'); // Bleu
-            customer.setAttribute('opacity', '0.8');
+            // Modèle 3D du client (Punk)
+            const customer = document.createElement('a-entity');
+            customer.setAttribute('gltf-model', 'url(models/Punk.glb)');
+            customer.setAttribute('position', `${QUEUE_POS.x} 0 ${QUEUE_POS.z}`); // y=0 car le modèle est sur le sol
+            customer.setAttribute('scale', '1 1 1'); // Ajuster selon la taille du modèle
+            customer.setAttribute('rotation', '0 0 0'); // Face à l'utilisateur
             customer.classList.add('customer');
             customer.id = `customer-${Date.now()}`;
 
