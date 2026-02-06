@@ -23,7 +23,8 @@ window.addEventListener('load', () => {
         }
 
         if (!sceneEl || !cubeEl) {
-            debugEl.textContent = 'Éléments manquants!';
+            if (debugEl) debugEl.textContent = 'Éléments manquants!';
+            console.error('Éléments manquants!');
             return;
         }
 
@@ -41,7 +42,7 @@ window.addEventListener('load', () => {
             sceneEl.appendChild(cursorEl);
         }
 
-        debugEl.textContent = 'Prêt!';
+        if (debugEl) debugEl.textContent = 'Prêt!';
 
         // ENSURE CURSOR EXISTS (Robustness Fix)
         if (!cursorEl) {
@@ -566,7 +567,7 @@ window.addEventListener('load', () => {
                     sceneEl.style.display = 'block';
                 }
 
-                debugEl.textContent = 'Démarrage AR...';
+                if (debugEl) debugEl.textContent = 'Démarrage AR...';
 
                 try {
                     xrSession = await navigator.xr.requestSession('immersive-ar', {
@@ -607,7 +608,7 @@ window.addEventListener('load', () => {
                 // CREATE HUD MENU (but hidden)
                 createHUDInventory();
 
-                debugEl.textContent = 'AR OK! Read the instructions';
+                if (debugEl) debugEl.textContent = 'AR OK! Read the instructions';
 
                 // Setup hit-test après délai
                 setTimeout(async () => {
@@ -615,9 +616,9 @@ window.addEventListener('load', () => {
                         xrRefSpace = sceneEl.renderer.xr.getReferenceSpace();
                         const viewer = await xrSession.requestReferenceSpace('viewer');
                         hitTestSource = await xrSession.requestHitTestSource({ space: viewer });
-                        debugEl.textContent = 'Hit-test OK!';
+                        if (debugEl) debugEl.textContent = 'Hit-test OK!';
                     } catch (e) {
-                        debugEl.textContent = 'Pas de hit-test';
+                        if (debugEl) debugEl.textContent = 'Pas de hit-test';
                     }
 
                     // Démarrer boucle XR
@@ -625,7 +626,8 @@ window.addEventListener('load', () => {
                 }, 500);
 
             } catch (e) {
-                debugEl.textContent = 'Erreur: ' + e.message;
+                if (debugEl) debugEl.textContent = 'Erreur: ' + e.message;
+                console.error('Erreur AR:', e.message);
                 // Show scene anyway on error
                 if (sceneEl) sceneEl.style.display = 'block';
             }
@@ -993,11 +995,11 @@ window.addEventListener('load', () => {
             });
 
             if (!closestEl) {
-                debugEl.textContent = 'Rien à attraper';
+                if (debugEl) debugEl.textContent = 'Rien à attraper';
                 return;
             }
 
-            debugEl.textContent = 'GRAB!';
+            if (debugEl) debugEl.textContent = 'GRAB!';
 
             grabbed = true;
             grabController = controller;
@@ -1014,7 +1016,7 @@ window.addEventListener('load', () => {
                 currentGrabbedEl.body.updateMassProperties();
             }
 
-            debugEl.textContent = 'ATTRAPÉ!';
+            if (debugEl) debugEl.textContent = 'ATTRAPÉ!';
         }
 
         function release() {
@@ -1049,7 +1051,7 @@ window.addEventListener('load', () => {
             grabbed = false;
             grabController = null;
             currentGrabbedEl = null;
-            debugEl.textContent = 'Lâché!';
+            if (debugEl) debugEl.textContent = 'Lâché!';
         }
 
 
@@ -1068,7 +1070,7 @@ window.addEventListener('load', () => {
             sceneEl.appendChild(box);
 
             surfaces.push({ x, y, z });
-            surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
+            if (surfacesEl) surfacesEl.textContent = 'Surfaces: ' + surfaces.length;
 
             if (surfaces.length > 200) surfaces.shift();
         }
@@ -1138,7 +1140,7 @@ window.addEventListener('load', () => {
                         // Remove
                         if (stainObj.el.parentNode) stainObj.el.parentNode.removeChild(stainObj.el);
                         stains.splice(index, 1);
-                        debugEl.textContent = 'Tache nettoyée !';
+                        if (debugEl) debugEl.textContent = 'Tache nettoyée !';
 
                         // Spawn new one occasionally
                         if (Math.random() > 0.5) spawnRandomStain();
