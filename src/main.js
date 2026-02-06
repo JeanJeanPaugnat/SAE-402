@@ -212,30 +212,30 @@ window.addEventListener('load', () => {
 
             // --- PAPER BACKGROUND ---
             const paper = document.createElement('a-plane');
-            paper.setAttribute('width', '0.84');
-            paper.setAttribute('height', '1.02');
+            paper.setAttribute('width', '1.02');
+            paper.setAttribute('height', '1.24');
             paper.setAttribute('color', '#f5f0e1'); // Couleur papier vieilli
             paper.setAttribute('material', 'shader: flat; side: double');
             paper.setAttribute('position', '0 0 0');
             // Légère rotation pour effet manuscrit
-            paper.setAttribute('rotation', '0 0 -2');
+            // paper.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(paper);
 
             // --- PAPER BORDER (Shadow effect) ---
             const shadow = document.createElement('a-plane');
-            shadow.setAttribute('width', '0.86');
-            shadow.setAttribute('height', '1.04');
+            shadow.setAttribute('width', '1.04');
+            shadow.setAttribute('height', '1.26');
             shadow.setAttribute('color', '#8b7355');
             shadow.setAttribute('opacity', '0.3');
             shadow.setAttribute('position', '0.01 -0.01 -0.01');
-            shadow.setAttribute('rotation', '0 0 -2');
+            // shadow.setAttribute('rotation', '0 0 -2');
             welcomePanel.appendChild(shadow);
 
             // --- TITLE ---
             const title = document.createElement('a-text');
             title.setAttribute('value', '~ HOLO BARISTA ~');
             title.setAttribute('align', 'center');
-            title.setAttribute('position', '0 0.6 0.01');
+            title.setAttribute('position', '0 0.56 0.01');
             title.setAttribute('width', '1.5');
             title.setAttribute('color', '#2d1810'); // Brun foncé
             title.setAttribute('font', 'mozillavr');
@@ -276,7 +276,7 @@ window.addEventListener('load', () => {
             closeBtn.setAttribute('height', '0.06');
             closeBtn.setAttribute('depth', '0.02');
             closeBtn.setAttribute('color', '#8b4513');
-            closeBtn.setAttribute('position', '0 -0.6 0.02');
+            closeBtn.setAttribute('position', '0 -0.55 0.02');
             closeBtn.setAttribute('class', 'clickable');
             closeBtn.id = 'welcome-close-btn';
 
