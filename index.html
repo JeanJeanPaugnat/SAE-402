@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAE 402</title>
+</head>
+
+<body>
+  <div id="overlay"
+    style="position:fixed;top:10px;left:10px;z-index:999;background:rgba(0,0,0,0.8);color:white;padding:15px;font-family:sans-serif;border-radius:8px;">
+    <h2 style="margin:0 0 10px 0;">☕ SAE 402</h2>
+    <p id="debug" style="color:yellow;margin:5px 0;">Chargement...</p>
+    <p id="surfaces" style="color:cyan;margin:5px 0;">Surfaces: 0</p>
+    <button id="btn" style="padding:10px 20px;font-size:16px;">Lancer AR</button>
+  </div>
+
+  <a-scene id="scene" physics="debug:false;gravity:-9.8" vr-mode-ui="enabled:false" renderer="alpha:true;antialias:true"
+    background="color:transparent">
+
+    <a-light type="ambient" intensity="0.6"></a-light>
+    <a-light type="directional" position="1 2 1" intensity="0.8"></a-light>
+
+    <a-entity id="rig">
+      <a-camera id="cam" position="0 1.6 0"></a-camera>
+
+      <!-- CONTROLLERS A-FRAME (Supprimés pour éviter conflits, gérés manuellement dans main.js) -->
+    </a-entity>
+
+    <!-- CUBE -->
+    <a-box id="cube" position="0 0.5 -0.7" width="0.15" height="0.15" depth="0.15" color="#8A2BE2"
+      dynamic-body="mass:0.5;linearDamping:0.3;angularDamping:0.3"></a-box>
+
+    <!-- Curseur hit-test -->
+    <a-ring id="cursor" position="0 0 -1" rotation="-90 0 0" radius-inner="0.05" radius-outer="0.08" color="#00FF00"
+      visible="false"></a-ring>
+
+    <!-- Sol de base -->
+    <a-plane position="0 0 0" rotation="-90 0 0" width="20" height="20" visible="false" static-body></a-plane>
+
+  </a-scene>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
